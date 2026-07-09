@@ -1,0 +1,81 @@
+﻿# MCP Server Configuration
+#
+# Configures the Model Context Protocol servers this project exposes to its agents.
+# See ../../layers/L4-tooling.md for design rationale.
+#
+# Replace placeholders before first run. Never commit secrets — use env vars or a
+# secrets manager and reference them as ${VAR_NAME}.
+
+version: "1.0"
+project: "loom-template"
+
+# Required Loom default set
+servers:
+  filesystem:
+    enabled: true
+    transport: stdio
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    description: "Read/write project files within the project root"
+
+  git:
+    enabled: true
+    transport: stdio
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-git", "--repository", "."]
+    description: "Repository operations"
+
+  web-search:
+    enabled: true
+    transport: stdio
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-brave-search"]
+    env:
+      BRAVE_API_KEY: "${BRAVE_API_KEY}"
+    description: "Web research"
+
+  database:
+    enabled: false  # set true and configure when DB is provisioned
+    transport: stdio
+    command: ""
+    args: []
+    description: "Project state DB ops (Supabase / Postgres / SQLite)"
+
+  chat-gateway:
+    enabled: false  # set true and pick a gateway via `loom init` at bootstrap
+    transport: stdio
+    command: ""
+    args: []
+    description: "User-facing chat (Telegram / Slack / Signal)"
+
+  github:
+    enabled: false  # recommended once you push to GitHub
+    transport: stdio
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    env:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+    description: "Code review, issue tracking"
+
+# Project-specific servers (add as needed)
+# Example:
+#   figma:
+#     enabled: true
+#     transport: stdio
+#     command: "npx"
+#     args: ["-y", "@some-org/mcp-figma"]
+#     env:
+#       FIGMA_TOKEN: "${FIGMA_TOKEN}"
+#     description: "Figma design surface"
+
+  # Alpaca documentation MCP (vendor server name "alpaca-us"). Authoritative
+  # Alpaca docs surface for the provisioning specialist + alpaca.md playbook
+  # staleness re-validation (ADR-0042 / ADR-0035). HTTP transport. Disabled by
+  # default (Alpaca-specific); enable in Alpaca-using projects. Disabled entries
+  # are not synced to .claude/settings.json#mcpServers, so this does not affect
+  # the mcp-yaml-json-alignment check.
+  alpaca-docs:
+    enabled: false
+    transport: http
+    url: "https://docs.alpaca.markets/mcp"
+    description: "Alpaca docs MCP (alpaca-us) — authoritative reference for provisioning + playbook re-validation; NOT the trading MCP. Per ADR-0042."

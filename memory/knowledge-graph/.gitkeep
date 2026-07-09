@@ -1,0 +1,5 @@
+# Temporal knowledge graph
+
+Optional at v0.1 — defer to v2 unless your project explicitly needs time-aware entity/relationship facts (Zep-style).
+
+If used, contents are gitignored — KG is rebuildable from the event log.

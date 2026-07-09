@@ -1,0 +1,46 @@
+﻿# Runtime configuration — used by scripts/deploy.{sh,ps1}.
+#
+# Per ADR-0019, extended by ADR-0032 §A (wait-for-deploy integration) and
+# ADR-0035 (the provisioning specialist reads/writes this file).
+# The deploy primitive reads this file to know what command to run, what
+# env vars are required, and how to extract the deployment URL from the
+# deploy command's stdout.
+#
+# Stamped by scripts/bootstrap.{sh,ps1}; fill in the values for your runtime.
+
+version: "1.0"
+project: "loom-template"
+
+deploy:
+  # The command to run. Examples by runtime:
+  #   Vercel:   command: "vercel"           args: ["--prod"]
+  #   Netlify:  command: "netlify"          args: ["deploy", "--prod"]
+  #   Fly.io:   command: "fly"              args: ["deploy"]
+  #   Render:   command: "render"           args: ["deploy"]
+  #   Custom:   command: "bash"             args: ["scripts/my-deploy.sh"]
+  command: "<DEPLOY_COMMAND>"
+  args: []
+
+  # Platform identifier — used by the wait-for-deploy primitive (ADR-0032 §A)
+  # to look up TERMINAL_STATES for non_progressing detection. Known platforms:
+  # vercel, netlify, fly, render. Leave empty to auto-detect from `command`
+  # basename; set explicitly when `command` is a wrapper (e.g., "bash" calling
+  # a custom deploy script) or when the basename does not match a known key.
+  # When unknown, the deploy primitive falls back to plain process capture
+  # without non_progressing detection (no hard fail).
+  platform: ""
+
+  # Env vars that must be present for the deploy to work. The deploy script
+  # checks each one before running and aborts with a clear error if missing.
+  # Do NOT put credential values here; reference them by name only.
+  env_required: []
+
+  # Regex applied to the deploy command's stdout to extract a deployment URL.
+  # The first capture group is used. Example for Vercel:
+  #   post_deploy_url_pattern: "https?://[a-z0-9-]+\\.vercel\\.app"
+  # Leave empty if your deploy command doesn't print a URL.
+  post_deploy_url_pattern: ""
+
+  # The branch this project considers "production." Used by the deploy
+  # script to refuse to deploy from feature branches (override with --force).
+  prod_branch: "main"

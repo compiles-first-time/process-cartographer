@@ -1,0 +1,5 @@
+# Vector index
+
+Backed by ChromaDB (local) or pgvector. Initialized on first run by the Memory-Keeper.
+
+Contents are gitignored (see [`../../.gitignore`](../../.gitignore)) — the index is rebuildable from source.

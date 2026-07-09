@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://loom.dev/schemas/update-bus-inbox-item.v1.json",
+  "title": "Loom Update Bus inbox item",
+  "description": "Formalized schema for files in update-bus/inbox/<id>.md. v0.2 stub per ADR-0016; full implementation in v0.3.",
+  "type": "object",
+  "required": ["id", "source", "proposed_by", "date", "affects", "risk", "collapse_risk"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier. Kebab-case slug + short hash recommended (e.g. 'retrieval-eval-2026-05-18-a7c').",
+      "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"
+    },
+    "source": {
+      "type": "string",
+      "enum": ["research-feed", "project-lesson", "internal-audit"],
+      "description": "Where this update came from. research-feed and project-lesson pass the source-tier filter (L7) before reaching the Critic; internal-audit bypasses the filter."
+    },
+    "proposed_by": {
+      "type": "string",
+      "description": "Agent name or human handle that filed the proposal."
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date (YYYY-MM-DD)."
+    },
+    "source_tier": {
+      "type": "string",
+      "enum": ["1", "2", "3", "rejected", "internal"],
+      "description": "Tier assigned by the source-tiering filter. Tier 1 = peer-reviewed / official / primary; Tier 2 = institutional/analyst; Tier 3 = reputable editorial press; rejected = dropped at filter; internal = bypassed filter (project-lesson, internal-audit)."
+    },
+    "affects": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Paths or layer names this proposal would touch (e.g. ['layers/L3-memory.md', 'spec/loom-spec-v0.1-full.md#B.4'])."
+    },
+    "risk": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Self-assessed risk; the Critic may revise."
+    },
+    "collapse_risk": {
+      "type": "boolean",
+      "description": "True if the change would affect the system's own evaluation or governance (per L7 collapse-prevention). Collapse-risk items can never be auto-merged."
+    },
+    "critic_review": {
+      "type": ["object", "null"],
+      "properties": {
+        "verdict": { "type": "string", "enum": ["approve", "reject", "escalate"] },
+        "reason": { "type": "string" },
+        "reviewed_at": { "type": "string", "format": "date-time" }
+      },
+      "description": "Filled by the Critic subagent on review. Null while pending."
+    },
+    "human_replica_recommendation": {
+      "type": ["object", "null"],
+      "properties": {
+        "verdict": { "type": "string", "enum": ["approve", "reject", "defer"] },
+        "reasoning": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reviewed_at": { "type": "string", "format": "date-time" }
+      },
+      "description": "Filled by the Human Replica subagent on preview. Null while pending."
+    },
+    "user_decision": {
+      "type": ["object", "null"],
+      "properties": {
+        "verdict": { "type": "string", "enum": ["approve", "reject", "defer"] },
+        "decided_at": { "type": "string", "format": "date-time" },
+        "decided_by": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "description": "Filled by the user. Null while in inbox; non-null moves the item to archive/."
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,12 @@
+# Specialists directory
+
+Dynamically created agents live here, one directory per specialist.
+
+Naming: project-scoped, descriptive, short (e.g., `figma-expert/`, `stripe-billing/`).
+
+Each specialist directory should contain:
+- `SKILL.md` — role, scope, decline/escalate triggers
+- Any helper scripts or configs
+- A `lessons-learned.md` linking back to entries in `../../lessons-learned/`
+
+Specialists are terminated at end of project lifecycle. Their lessons-learned persist.

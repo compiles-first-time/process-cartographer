@@ -1,0 +1,13 @@
+{
+  "name": "@loom/adapter-langgraph",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Loom LangGraph adapter (ADR-0050) — governs a LangGraph.js graph with the portable Loom spec. guard.mjs is dependency-free (conformance proof); example.run.mjs needs @langchain/langgraph.",
+  "scripts": {
+    "example": "node example.run.mjs"
+  },
+  "dependencies": {
+    "@langchain/langgraph": "^0.2.0"
+  }
+}

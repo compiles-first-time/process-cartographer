@@ -1,0 +1,8 @@
+Auto-suggested lesson signatures live here.
+
+Each file `<sha1-prefix>.txt` is a sentinel marking that the Stop hook has already
+proposed a draft for that error signature, so subsequent sessions with the same
+signature do not re-propose.
+
+Per ADR-0014. Do not delete files in this directory without an ADR — losing a
+signature here causes duplicate drafts.

@@ -1,0 +1,81 @@
+# LiteLLM proxy configuration for Loom
+# Docs: https://docs.litellm.ai/docs/proxy/configs
+#
+# Exposes three tier aliases (loom-haiku / loom-sonnet / loom-opus) backed by
+# Anthropic, with OpenAI fallbacks. Projects built on Loom that make direct
+# LLM calls (LangGraph.js, custom agents) should point their API base URL at
+# http://localhost:4000 and use these aliases.
+#
+# Start: scripts/router.ps1 (Windows) or scripts/router.sh (Linux/macOS)
+# Design: adr/0045-per-agent-model-routing.md, layers/L4-tooling.md
+
+model_list:
+
+  # ── Haiku tier — mechanical tasks ──────────────────────────────────────────
+  # Agents: constitution-service, hr, human-replica
+  - model_name: loom-haiku
+    litellm_params:
+      model: anthropic/claude-haiku-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # ── Sonnet tier — standard engineering tasks ────────────────────────────────
+  # Agents: critic, memory-keeper, all 12 specialists
+  - model_name: loom-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-5
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # ── Opus tier — deep research and synthesis ─────────────────────────────────
+  # Agents: eac
+  - model_name: loom-opus
+    litellm_params:
+      model: anthropic/claude-opus-4-8
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # ── OpenAI fallbacks (activate when OPENAI_API_KEY is set) ─────────────────
+  - model_name: loom-haiku
+    litellm_params:
+      model: gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: loom-sonnet
+    litellm_params:
+      model: gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: loom-opus
+    litellm_params:
+      model: o1-preview
+      api_key: os.environ/OPENAI_API_KEY
+
+  # ── Local / zero-cost (requires Ollama running at localhost:11434) ──────────
+  - model_name: loom-local
+    litellm_params:
+      model: ollama/llama3.1:8b
+      api_base: http://localhost:11434
+
+router_settings:
+  # Fallback chain: try each in order on failure
+  allowed_fails: 2
+  fallbacks:
+    - {"loom-haiku": ["loom-local"]}
+    - {"loom-sonnet": ["loom-haiku"]}
+    - {"loom-opus": ["loom-sonnet"]}
+
+litellm_settings:
+  set_verbose: false
+  # Prompt caching: Anthropic cache_control blocks pass through transparently.
+  # When calling loom-haiku/sonnet/opus from code, structure your requests so
+  # the system prompt + tool schemas come before dynamic content — the Anthropic
+  # backend caches the static prefix automatically (cache reads = 0.1x base cost).
+
+  # Observability: uncomment to enable Langfuse tracing
+  # success_callback: ["langfuse"]
+  # failure_callback: ["langfuse"]
+  # langfuse_public_key: os.environ/LANGFUSE_PUBLIC_KEY
+  # langfuse_secret: os.environ/LANGFUSE_SECRET_KEY
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  # Optional: PostgreSQL for persistent usage tracking + budget enforcement
+  # database_url: os.environ/LITELLM_DATABASE_URL

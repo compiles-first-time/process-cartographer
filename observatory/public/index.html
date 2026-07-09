@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Loom Observatory</title>
+  <link rel="stylesheet" href="/css/observatory.css">
+</head>
+<body>
+  <header class="header">
+    <div class="header-title">
+      <span>L9</span> Observatory
+    </div>
+    <div class="header-controls">
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+        <span class="theme-icon" id="theme-icon">&#9789;</span>
+      </button>
+      <div class="header-status">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <nav class="nav" id="nav">
+      <button class="nav-item active" data-panel="overview">
+        <span class="nav-icon">&#9632;</span> Overview
+      </button>
+      <button class="nav-item" data-panel="activity">
+        <span class="nav-icon">&#9889;</span> Activity
+      </button>
+      <button class="nav-item" data-panel="agents">
+        <span class="nav-icon">&#9670;</span> Agents
+      </button>
+      <button class="nav-item" data-panel="tasks">
+        <span class="nav-icon">&#9654;</span> Tasks
+      </button>
+      <button class="nav-item" data-panel="cost">
+        <span class="nav-icon">&#9650;</span> Cost
+      </button>
+      <button class="nav-item" data-panel="failures">
+        <span class="nav-icon">&#9888;</span> Failures
+      </button>
+      <button class="nav-item" data-panel="deploys">
+        <span class="nav-icon">&#9730;</span> Deploys
+      </button>
+      <button class="nav-item" data-panel="compliance">
+        <span class="nav-icon">&#9745;</span> Compliance
+      </button>
+      <button class="nav-item" data-panel="update-bus">
+        <span class="nav-icon">&#8634;</span> Update Bus
+      </button>
+      <button class="nav-item" data-panel="testing">
+        <span class="nav-icon">&#10003;</span> Testing
+      </button>
+      <button class="nav-item" data-panel="requirements">
+        <span class="nav-icon">&#8801;</span> Requirements
+      </button>
+      <button class="nav-item" data-panel="kanban">
+        <span class="nav-icon">&#9776;</span> Kanban
+      </button>
+      <button class="nav-item" data-panel="systems">
+        <span class="nav-icon">&#8644;</span> Systems
+      </button>
+    </nav>
+
+    <main class="main" id="main-content">
+      <!-- Panels render here -->
+    </main>
+  </div>
+
+  <script type="module" src="/js/app.mjs"></script>
+</body>
+</html>

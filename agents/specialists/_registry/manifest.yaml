@@ -1,0 +1,178 @@
+# Specialist registry manifest — Loom v0.4 per ADR-0023 + ADR-0024.
+#
+# Manifest entries populated by PR-M (ADR-0024) — 12 starter specialists.
+#
+# Each entry binds a specialist's name to its trigger patterns (read by
+# the intent classifier in scripts/hooks/_classify.mjs via
+# scripts/lib/registry-loader.mjs) and to its canonical SKILL.md location.
+#
+# Two namespaces:
+#   - _registry/<name>/SKILL.md   — bundled with Loom; imported as-is.
+#   - ../<name>/SKILL.md          — project-local; may override a registry
+#                                   entry by setting `extends: _registry/<name>`
+#                                   in its SKILL.md frontmatter.
+#
+# Specialist SKILL.md ships with a "Failure modes" section in the xlsx
+# convention (ADR-0022) — SE (System Exception) + BE (Business Exception)
+# rows, each with input/output schema, remediation, and JUSTIFICATIONS.
+
+version: "1.0"
+
+specialists:
+  - name: auth
+    summary: "Application authentication — sessions, password hashing, MFA. NOT OAuth."
+    skill_md: _registry/auth/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:login|sign[- ]?in|sign[- ]?up|password|session|MFA|2FA|passkey|account recovery)\\b"
+      tools: []
+      keywords: []
+    context_budget: 24000
+    eval_source: observability/eval-suite/subagents/auth.md
+
+  - name: oauth
+    summary: "OAuth 2.1 / OIDC integration — Google, GitHub, Microsoft, Apple. PKCE-first."
+    skill_md: _registry/oauth/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:OAuth|OIDC|sign in with|social login|NextAuth|Auth\\.js|Clerk|passport\\.?js)\\b"
+      tools: []
+      keywords: []
+    context_budget: 24000
+    eval_source: observability/eval-suite/subagents/oauth.md
+
+  - name: deploy
+    summary: "Deployment configuration — Vercel, Netlify, Fly, Render. Writes tools/runtime.yaml."
+    skill_md: _registry/deploy/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:vercel|netlify|fly\\.io|render|railway|cloudflare pages)\\b"
+        - "\\b(?:configure deploy|domain mapping|environment variables)\\b"
+      tools: []
+      keywords: []
+    context_budget: 16000
+    eval_source: observability/eval-suite/subagents/deploy.md
+
+  - name: db-migration
+    summary: "Database schema migrations — Prisma, Drizzle, plain SQL. Forward-only by default."
+    skill_md: _registry/db-migration/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:migration|schema change|prisma migrate|drizzle[- ]?kit|ALTER TABLE)\\b"
+      tools: []
+      keywords: []
+    context_budget: 24000
+    eval_source: observability/eval-suite/subagents/db-migration.md
+
+  - name: secrets
+    summary: "Credential storage + rotation. .env, secrets managers. Never in tool args."
+    skill_md: _registry/secrets/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:secret|credential|API key|rotate key|env var|vault|\\.env)\\b"
+      tools: []
+      keywords: []
+    context_budget: 16000
+    eval_source: observability/eval-suite/subagents/secrets.md
+
+  - name: email
+    summary: "Transactional email — Resend, SES, SendGrid, Postmark. SPF/DKIM/DMARC, deliverability."
+    skill_md: _registry/email/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:email|transactional|password reset email|SES|SendGrid|Resend|Postmark|DKIM|SPF|DMARC)\\b"
+      tools: []
+      keywords: []
+    context_budget: 16000
+    eval_source: observability/eval-suite/subagents/email.md
+
+  - name: file-storage
+    summary: "Object storage — S3, R2, Supabase Storage, Vercel Blob. Presigned URLs."
+    skill_md: _registry/file-storage/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:file upload|file storage|S3|R2|Cloudflare Images|Supabase Storage|Vercel Blob|presigned URL|object storage)\\b"
+      tools: []
+      keywords: []
+    context_budget: 16000
+    eval_source: observability/eval-suite/subagents/file-storage.md
+
+  - name: error-tracking
+    summary: "Exception monitoring — Sentry, Honeycomb, Datadog. PII scrubbing, source maps."
+    skill_md: _registry/error-tracking/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:Sentry|error tracking|exception monitoring|source maps?|stack traces?)\\b"
+      tools: []
+      keywords: []
+    context_budget: 16000
+    eval_source: observability/eval-suite/subagents/error-tracking.md
+
+  - name: monitoring
+    summary: "Uptime + APM + RUM — Datadog, Better Stack, Vercel Analytics, OpenTelemetry."
+    skill_md: _registry/monitoring/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:uptime|latency monitoring|APM|Core Web Vitals|Datadog|Better Stack|Grafana|OpenTelemetry|OTel|tracing)\\b"
+      tools: []
+      keywords: []
+    context_budget: 16000
+    eval_source: observability/eval-suite/subagents/monitoring.md
+
+  - name: queues
+    summary: "Background jobs — BullMQ, Inngest, Trigger.dev, SQS. Idempotency, DLQ, retries."
+    skill_md: _registry/queues/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:background job|queue|BullMQ|Inngest|Trigger\\.dev|SQS|process later|cron[- ]?like)\\b"
+      tools: []
+      keywords: []
+    context_budget: 16000
+    eval_source: observability/eval-suite/subagents/queues.md
+
+  - name: payments
+    summary: "Payment integration — Stripe, Paddle, Polar. Webhooks, idempotency, refunds, tax."
+    skill_md: _registry/payments/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:Stripe|Paddle|Polar|Lemon Squeezy|subscription|checkout|refund|payment webhook|invoice)\\b"
+      tools: []
+      keywords: []
+    context_budget: 24000
+    eval_source: observability/eval-suite/subagents/payments.md
+
+  - name: ci
+    summary: "CI/CD — GitHub Actions, preview deploys. Permissions, SHA-pinning, deploy gates."
+    skill_md: _registry/ci/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:CI|CD|GitHub Actions|pipeline|workflow|preview deploy|PR check)\\b"
+      tools: []
+      keywords: []
+    context_budget: 16000
+    eval_source: observability/eval-suite/subagents/ci.md
+
+  # The credential-setup specialist is specified by ADR-0042 (credential-setup-specialist).
+  - name: credential-setup
+    summary: "Acquires web-gated credentials via browser automation — register, login, 2FA, API-key retrieval — with per-step consent. Hands secret to collect-credentials; never captures it."
+    skill_md: _registry/credential-setup/SKILL.md
+    tier: bundled
+    triggers:
+      patterns:
+        - "\\b(?:register (?:for|an account)|sign[- ]?up for|create an account|get (?:me )?(?:an? )?API keys?|retrieve (?:my )?API key|2FA|two[- ]?factor|verification code|log ?in (?:to|and))\\b"
+      tools: []
+      keywords: []
+    context_budget: 22000
+    eval_source: observability/eval-suite/subagents/credential-setup.md

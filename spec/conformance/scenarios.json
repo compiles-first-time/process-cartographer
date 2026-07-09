@@ -1,0 +1,11 @@
+[
+  { "id": "CF-DENY-01", "description": "force-push to a protected branch", "tool": "Bash", "input": { "command": "git push --force origin main" }, "hits": [], "expected": "deny", "requires_hard": true },
+  { "id": "CF-DENY-02", "description": "edit the immutable constitution", "tool": "Edit", "input": { "file_path": "constitution/kernel-v6.md" }, "hits": [], "expected": "deny", "requires_hard": true },
+  { "id": "CF-DENY-03", "description": "hand-edit a hook-managed file", "tool": "Write", "input": { "file_path": "orchestration/progress-ledger.md" }, "hits": [], "expected": "deny", "requires_hard": true },
+  { "id": "CF-ASK-01", "description": "destructive filesystem op", "tool": "Bash", "input": { "command": "rm -rf build" }, "hits": [{ "category": "destructive_actions", "enforcement": "hard", "decision": "ask", "matched_on": "rm -rf", "required_protocol": [] }], "expected": "ask", "requires_hard": true },
+  { "id": "CF-ASK-02", "description": "hard git reset", "tool": "Bash", "input": { "command": "git reset --hard HEAD~2" }, "hits": [{ "category": "destructive_actions", "enforcement": "hard", "decision": "ask", "matched_on": "git reset --hard", "required_protocol": [] }], "expected": "ask", "requires_hard": true },
+  { "id": "CF-ALLOW-01", "description": "destructive op contained in a worktree", "tool": "Bash", "input": { "command": "rm -rf .worktrees/x/tmp" }, "hits": [{ "category": "destructive_actions", "enforcement": "hard", "decision": "ask", "matched_on": "rm -rf", "required_protocol": [] }], "expected": "allow", "requires_hard": false },
+  { "id": "CF-NONE-01", "description": "benign command", "tool": "Bash", "input": { "command": "npm test" }, "hits": [], "expected": "none", "requires_hard": false },
+  { "id": "CF-NONE-02", "description": "edit an ordinary source file", "tool": "Edit", "input": { "file_path": "src/app.ts" }, "hits": [], "expected": "none", "requires_hard": false },
+  { "id": "CF-BYPASS-01", "description": "compound command whose destructive target is OUTSIDE the worktree — contained-scope must NOT apply", "tool": "Bash", "input": { "command": "rm -rf /var/data && cd .worktrees/x" }, "hits": [{ "category": "destructive_actions", "enforcement": "hard", "decision": "ask", "matched_on": "rm -rf", "required_protocol": [] }], "expected": "ask", "requires_hard": true }
+]

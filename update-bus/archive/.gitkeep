@@ -1,0 +1,8 @@
+# Archive
+
+Resolved Update Bus items. Subdirectories:
+
+- `applied/` — approved + merged (with link to the resulting ADR)
+- `rejected/` — rejected with reason
+
+Never delete from this directory.

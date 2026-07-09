@@ -1,0 +1,18 @@
+{
+  "$comment": "Source of truth for CURRENT model IDs (ADR-0045 + ADR-0054 Phase 1b). `loom doctor`'s model-id-current check flags any .claude/agents/*.md `model:` field not in `current`, and maps known-retired IDs to their replacement. Update this file (and bump last_verified) when a new model generation releases — it is the single place model-ID currency is maintained.",
+  "last_verified": "2026-07-08",
+  "ttl_days": 120,
+  "current": [
+    "claude-opus-4-8",
+    "claude-sonnet-5",
+    "claude-haiku-4-5-20251001",
+    "claude-fable-5"
+  ],
+  "retired": {
+    "claude-sonnet-4-6": "claude-sonnet-5",
+    "claude-sonnet-4-5": "claude-sonnet-5",
+    "claude-3-5-sonnet": "claude-sonnet-5",
+    "claude-opus-4-1": "claude-opus-4-8",
+    "claude-opus-4-7": "claude-opus-4-8"
+  }
+}

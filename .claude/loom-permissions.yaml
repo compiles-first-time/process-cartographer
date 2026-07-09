@@ -1,0 +1,169 @@
+# Loom v0.6 permissions protocol — per ADR-0027 / LR-04.
+#
+# Three policy categories. Each declares which tool-call patterns it covers
+# and what the required pre-action protocol is (smallest-needed credential
+# scope + rollback path + constitution-service consultation, etc.).
+#
+# This is NOT Claude Code's `.claude/settings.json#permissions` block (which
+# is allow/deny lists). This is Loom's higher-level *policy* classifier that
+# the PreToolUse hook consults. The two coexist:
+#   - settings.json.permissions = allow/deny lists at the tool level
+#   - loom-permissions.yaml      = LR-04 meta-rule policy categories
+#
+# Project-local overrides go in .claude/loom-permissions.local.yaml
+# (gitignored) — same schema; merges over this file.
+
+version: "1.0"
+
+categories:
+
+  # ── external_service_setup ──────────────────────────────────────────────
+  # Tool calls that configure or modify a third-party service. Examples:
+  # creating a Stripe webhook endpoint, configuring a Supabase project,
+  # adding a custom domain to Vercel. Reversible in most cases but visible
+  # to the external service operator + may incur cost.
+  external_service_setup:
+    triggers:
+      # Billable patterns (ADR-0032 §B). Matches here flag the hit with
+      # requires_pre_flight_quota: true. The classifier checks these
+      # BEFORE the generic command_patterns / mcp_patterns lists below,
+      # so billable ops are correctly recognized even when a generic
+      # pattern would also match.
+      billable_command_patterns:
+        # Deploy operations — billable on these platforms (build minutes,
+        # compute, egress, etc.).
+        - "\\bvercel\\s+deploy\\b"
+        - "\\bvercel\\s+(?:.*\\s+)?--prod\\b"
+        - "\\bnetlify\\s+deploy\\b"
+        - "\\bfly\\s+deploy\\b"
+        - "\\brender\\s+deploy\\b"
+        - "\\brailway\\s+(?:up|deploy)\\b"
+        # Provision / create operations on billable platforms — these
+        # spawn new compute / storage / projects that begin accruing cost.
+        - "\\bvercel\\s+projects\\s+(?:add|create)\\b"
+        - "\\bfly\\s+apps\\s+create\\b"
+        - "\\brender\\s+services\\s+create\\b"
+        - "\\bsupabase\\s+projects\\s+create\\b"
+        - "\\brailway\\s+init\\b"
+        - "\\bplanetscale\\s+(?:database|branch)\\s+create\\b"
+        - "\\bdoctl\\s+(?:apps|compute)\\s+create\\b"
+        # Generic cloud-CLI create patterns. These over-fire by design —
+        # better a false-positive pre-flight check than a silent billable
+        # provision. The pre-flight is observability, not blocking.
+        - "\\bgcloud\\s+\\w+\\s+create\\b"
+        - "\\baws\\s+\\w+\\s+create-\\w+\\b"
+        - "\\baz\\s+\\w+\\s+create\\b"
+      billable_mcp_patterns:
+        # MCP servers performing deploys or new-resource provisioning on
+        # billable platforms.
+        - "mcp__.*__deploy_(?:to_)?(?:vercel|netlify|fly|render|railway|supabase|aws|gcp|azure)"
+        - "mcp__.*__(?:provision|create_project|create_app|create_service)_.*"
+      # Non-billable external_service_setup — config-only ops on external
+      # services. These trigger the soft warning but NOT the pre-flight
+      # quota requirement.
+      command_patterns:
+        - "\\bsupabase\\s+(?:link|secrets)\\b"
+        - "\\bvercel\\s+(?:domains|env)\\b"
+        - "\\bgh\\s+(?:repo|secret)\\s+create\\b"
+        - "\\bstripe\\s+(?:webhook_endpoints|products)\\b"
+      mcp_patterns:
+        # MCP setup operations that aren't provision/deploy (e.g., update,
+        # configure). Provision-class MCPs go in billable_mcp_patterns above.
+        - "mcp__.*__(?:update|configure)_.*"
+    required_protocol:
+      - present_action: "What is the action and which service does it touch?"
+      - smallest_scope: "What is the minimum credential scope needed? (e.g., write to one Vercel project, NOT org-wide admin)"
+      - rollback_path: "How is this undone if it's wrong? (manual delete? automatic teardown script?)"
+      - pre_flight_quota: "For billable hits: emit a pre_flight_quota_check event with the platform's quota / billing status BEFORE the op proceeds (ADR-0032 §B)"
+      - constitution_service: "consulted-or-escalated"  # not always required; user discretion
+    enforcement: "soft"  # warning event in JSONL; deploy/CI may upgrade to hard
+
+  # ── destructive_actions ─────────────────────────────────────────────────
+  # Tool calls that are irreversible by their nature. Inherits LR-02
+  # production-mutation detection (vercel deploy, gh release create, etc.)
+  # plus filesystem / DB / git destructive patterns.
+  destructive_actions:
+    triggers:
+      command_patterns:
+        # Local destructive
+        - "\\brm\\s+-[rf]+\\b"
+        - "\\bgit\\s+reset\\s+--hard\\b"
+        - "\\bgit\\s+push\\s+(?:.*\\s+)?(?:--force|-f)\\b"
+        - "\\bgit\\s+branch\\s+-D\\b"
+        - "\\bgit\\s+clean\\s+-[fd]+\\b"
+        - "\\bRemove-Item\\s+.*\\s+-Recurse\\s+-Force\\b"
+        # Database destructive
+        - "\\bdrop\\s+(?:table|database|schema)\\b"
+        - "\\btruncate\\s+table\\b"
+        - "\\bprisma\\s+migrate\\s+reset\\b"
+        - "\\bsupabase\\s+db\\s+reset\\b"
+        # Production-mutation (was LR-02, now subsumed by LR-04)
+        - "\\bvercel\\s+deploy\\b"
+        - "\\bvercel\\s+(?:.*\\s+)?--prod\\b"
+        - "\\bnpm\\s+publish\\b"
+        - "\\bgh\\s+release\\s+create\\b"
+        - "\\bgit\\s+push\\s+(?:.*\\s+)?origin\\s+(?:main|master|prod|production)\\b"
+        - "\\bprisma\\s+migrate\\s+deploy\\b"
+        - "\\bterraform\\s+apply\\b"
+        - "\\bkubectl\\s+apply\\s+.*\\s+(?:prod|production)\\b"
+    required_protocol:
+      - present_action: "What is the action and what state does it destroy or mutate?"
+      - smallest_scope: "Is there a narrower variant? (e.g., delete specific rows vs. truncate table)"
+      - rollback_path: "Is rollback possible at all? If not, the action is irreversible — Kernel Rule 20 weight applies"
+      - constitution_service: "required"  # constitution-service claim must precede the call
+    enforcement: "hard"  # PreToolUse hook emits constitution_check_missing event; deploy gates on it
+    decision: "ask"  # ADR-0047 (BR_01): PreToolUse returns permissionDecision:ask for this class. The guard hard-DENIES the immutable/catastrophic subset (kernel rules 1-8, hook-managed files, force-push to a protected branch) and ALLOWS ops contained inside a worktree. Set to "deny" to hard-block all destructive ops.
+
+  # ── credentials ──────────────────────────────────────────────────────────
+  # Tool calls that handle credentials. Subsumes LR-03 (secrets in chat /
+  # tool args) and OAuth-preference enforcement (PR-Q).
+  credentials:
+    triggers:
+      # Value-shape patterns delegated to scripts/lib/secret-patterns.mjs.
+      # This category's purpose here is to flag *intent* — the user is
+      # likely about to handle credentials when these patterns appear in
+      # tool args.
+      command_patterns:
+        - "\\b(?:--token|--api[-_]?key|--secret|--password|--access[-_]?key)\\b"
+        - "\\bnpm\\s+(?:login|token)\\b"
+        - "\\bgh\\s+auth\\s+login\\b"
+        - "\\bdoppler\\s+secrets\\s+set\\b"
+        - "\\bvercel\\s+env\\s+(?:add|set)\\b"
+      keywords:
+        - "service_role_key"
+        - "client_secret"
+    required_protocol:
+      - present_action: "What credential will the action use, and what is its scope?"
+      - smallest_scope: "Is there a narrower credential (project-scoped vs. org-wide; read-only vs. write)?"
+      - rollback_path: "Rotation procedure documented? Where is the credential stored after?"
+      - never_in_args: "The credential VALUE must not appear in tool args (LR-03; hook redacts HIGH-confidence shapes)"
+      - oauth_preferred: "If the service offers OAuth (provider-issued, short-lived) — prefer it over a long-lived API key"
+    enforcement: "soft"  # PreToolUse emits credential_action_attempted event; secrets-doctor catches retroactively
+
+  # ── browser_credential_automation ─────────────────────────────────────────
+  # Tool calls that drive a third-party web UI to ACQUIRE a credential on the
+  # user's behalf — account registration, login, 2FA, API-key generation via
+  # browser automation (Claude in Chrome MCP). Per ADR-0042 + the
+  # credential-setup specialist. Distinct from `credentials` (a secret the user
+  # already has): this category is the browser-driven ACQUISITION that precedes
+  # storage. Every state-changing browser step is consent-gated (Kernel Rule 8
+  # + LR-04); the secret is handed to collect-credentials (stdin), never
+  # captured into context (LR-03).
+  browser_credential_automation:
+    triggers:
+      mcp_patterns:
+        - "mcp__.*[Cc]hrome.*__(?:navigate|form_input|computer|click|fill|file_upload)"
+        - "mcp__.*[Bb]rowser.*__(?:navigate|form_input|click|fill|type)"
+      command_patterns:
+        - "\\bcollect-credentials\\b"
+      keywords:
+        - "register an account"
+        - "sign up for"
+        - "verification code"
+    required_protocol:
+      - present_action: "Which browser step (URL + what it submits) and on which service?"
+      - consent_per_step: "Explicit user approval BEFORE each state-changing step (account creation, ToS acceptance, key generation); never auto-accept (Kernel Rule 8)"
+      - smallest_scope: "Narrowest account tier / key scope for the goal (paper-only, read-only, single-project)"
+      - secret_handoff: "Secret goes to collect-credentials stdin (keyring) — never screenshotted, read, or placed in tool args (LR-03; ADR-0042)"
+      - decline_triggers: "CAPTCHA / KYC / payment / ToS-prohibited automation: stop and hand to the user; never bypass (CRED-EX-01/02/06)"
+    enforcement: "soft"  # PreToolUse emits browser_credential_automation_attempted; consent gates observable in the event log

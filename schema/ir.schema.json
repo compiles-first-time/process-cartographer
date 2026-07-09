@@ -1,0 +1,253 @@
+{
+  "$ref": "#/definitions/IRGraph",
+  "definitions": {
+    "IRGraph": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "const": "0.1.0"
+        },
+        "project": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "main": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "workflows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "filePath": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "stateMachine",
+                  "flowchart",
+                  "sequence",
+                  "unknown"
+                ]
+              },
+              "arguments": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "direction": {
+                      "type": "string",
+                      "enum": [
+                        "In",
+                        "Out",
+                        "InOut",
+                        "Property"
+                      ]
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "direction",
+                    "type"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "states": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "displayName": {
+                      "type": "string"
+                    },
+                    "isFinal": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "isFinal"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "activityCounts": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number"
+                }
+              },
+              "targets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "system": {
+                      "type": "string",
+                      "enum": [
+                        "web",
+                        "browser",
+                        "database",
+                        "api",
+                        "excel",
+                        "file",
+                        "login",
+                        "orchestrator",
+                        "unknown"
+                      ]
+                    },
+                    "area": {
+                      "type": "string"
+                    },
+                    "activityType": {
+                      "type": "string"
+                    },
+                    "confidence": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "evidence": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "system",
+                    "activityType",
+                    "confidence",
+                    "evidence"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "id",
+              "filePath",
+              "kind",
+              "arguments",
+              "states",
+              "activityCounts",
+              "targets"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string"
+              },
+              "to": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "invoke"
+                ]
+              },
+              "resolved": {
+                "type": "boolean"
+              },
+              "raw": {
+                "type": "string"
+              },
+              "expression": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "from",
+              "to",
+              "kind",
+              "resolved",
+              "raw"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "diagnostics": {
+          "type": "object",
+          "properties": {
+            "workflowsParsed": {
+              "type": "number"
+            },
+            "activitiesParsed": {
+              "type": "number"
+            },
+            "invokeEdges": {
+              "type": "number"
+            },
+            "unresolvedInvokes": {
+              "type": "number"
+            },
+            "unknownTargets": {
+              "type": "number"
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "workflowsParsed",
+            "activitiesParsed",
+            "invokeEdges",
+            "unresolvedInvokes",
+            "unknownTargets",
+            "warnings"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "version",
+        "project",
+        "workflows",
+        "edges",
+        "diagnostics"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "process-cartographer IR v0.1.0"
+}

@@ -1,0 +1,38 @@
+﻿# Langfuse Configuration
+#
+# Self-hosted Langfuse for tracing, evals, and OTel GenAI ingest.
+# See ../layers/L6-observability.md for design rationale.
+
+version: "1.0"
+project: "loom-template"
+
+# Langfuse server (default: local self-hosted)
+server:
+  url: "http://localhost:3000"
+  public_key: "${LANGFUSE_PUBLIC_KEY}"
+  secret_key: "${LANGFUSE_SECRET_KEY}"
+
+# OpenTelemetry GenAI semantic conventions
+otel:
+  exporter: "otlp"
+  endpoint: "http://localhost:4318/v1/traces"
+  service_name: "loom-template"
+
+# Required trace fields (per Kernel Rule 22)
+required_fields:
+  - timestamp
+  - agent
+  - project
+  - action
+  - confidence
+  - sources
+  - constitutional_check
+  - kernel_version
+
+# Alert thresholds (matched to dashboard signals in L6 spec)
+alerts:
+  agent_heartbeat_silent_seconds: 60
+  llm_cost_per_hour_usd: 5
+  task_latency_pending_hours: 4
+  error_rate_percent: 10
+  markdown_file_size_kb: 100

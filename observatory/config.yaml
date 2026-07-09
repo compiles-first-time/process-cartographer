@@ -1,0 +1,26 @@
+# Loom Observatory configuration
+# Edit to match your environment and pricing.
+
+server:
+  port: 4040
+  open_browser: true
+  auto_start: true      # spawn Observatory on every session start; set false to disable
+
+replay:
+  days: 7
+
+theme: dark
+
+# Per-model token pricing (USD per 1M tokens).
+# Fill in your negotiated rates; defaults are Anthropic public pricing (2026-06).
+cost_rates:
+  anthropic:
+    claude-opus-4:     { input: 15.00, output: 75.00 }
+    claude-sonnet-4:   { input:  3.00, output: 15.00 }
+    claude-haiku-3.5:  { input:  0.80, output:  4.00 }
+  openai:
+    gpt-4o:            { input:  2.50, output: 10.00 }
+    gpt-4o-mini:       { input:  0.15, output:  0.60 }
+  google:
+    gemini-2.5-pro:    { input:  1.25, output:  5.00 }
+    gemini-2.5-flash:  { input:  0.15, output:  0.60 }

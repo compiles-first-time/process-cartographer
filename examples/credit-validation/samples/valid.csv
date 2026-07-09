@@ -1,0 +1,4 @@
+name,email,amount,card_last4
+Ada Lovelace,ada@example.com,120.50,4321
+Alan Turing,alan@example.org,75.00,1170
+Grace Hopper,grace@example.net,240.99,0806

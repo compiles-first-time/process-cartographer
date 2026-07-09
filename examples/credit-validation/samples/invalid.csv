@@ -1,0 +1,4 @@
+name,email,amount,card_last4
+Ada Lovelace,ada@example.com,120.50,4321
+,not-an-email,-5,12
+Katherine Johnson,katherine@example.com,abc,55

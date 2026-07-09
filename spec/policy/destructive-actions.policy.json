@@ -1,0 +1,7 @@
+{
+  "immutableFiles": ["constitution/kernel-v6.md"],
+  "hookManagedFiles": ["orchestration/progress-ledger.md", "tools/discovered-runtime.md"],
+  "protectedBranches": ["main", "master", "prod", "production"],
+  "containedScopeSegments": [".worktrees/"],
+  "destructiveDefault": "ask"
+}

@@ -1,0 +1,30 @@
+# Episodic event log
+
+Append-only JSONL files. Satisfies Kernel Rule 22 (epistemic transparency).
+
+## Format
+
+One JSON object per line. Required fields:
+
+```json
+{
+  "timestamp": "<ISO 8601>",
+  "agent": "<agent-name>",
+  "project": "<project-name>",
+  "action": "<action-type>",
+  "confidence": 0.0,
+  "sources": ["..."],
+  "constitutional_check": "Passed Rule N",
+  "kernel_version": "v6"
+}
+```
+
+See [`../../layers/L6-observability.md`](../../layers/L6-observability.md) for the full schema.
+
+## Retention
+
+Default: 90 days hot, then compress and archive (§H Q7).
+
+Files rotate when they exceed 10 MB or at midnight UTC, whichever comes first.
+
+Actual log files are gitignored — they're an audit artifact, not a versioned artifact.
