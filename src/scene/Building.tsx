@@ -9,20 +9,21 @@ interface BuildingProps {
   dimmed: boolean;
   showLabel: boolean;
   onSelect: (id: string) => void;
+  onEnter: (id: string) => void;
 }
 
-export default function Building({ building, selected, dimmed, showLabel, onSelect }: BuildingProps) {
+export default function Building({ building, selected, dimmed, showLabel, onSelect, onEnter }: BuildingProps) {
   const [hovered, setHovered] = useState(false);
   const color = CATEGORY_COLORS[building.category];
-  const { x, z, width, depth, height } = building;
+  const { x, z, width, depth, height, kind, enterable } = building;
 
-  const emissiveIntensity = selected ? 0.9 : hovered ? 0.5 : 0.12;
-  const opacity = dimmed && !selected ? 0.12 : 1;
+  const emissiveIntensity = selected ? 0.95 : hovered ? 0.55 : 0.15;
+  const opacity = dimmed && !selected ? 0.1 : 1;
 
   const over = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     setHovered(true);
-    document.body.style.cursor = "pointer";
+    document.body.style.cursor = enterable ? "zoom-in" : "pointer";
   };
   const out = () => {
     setHovered(false);
@@ -37,38 +38,44 @@ export default function Building({ building, selected, dimmed, showLabel, onSele
           e.stopPropagation();
           onSelect(building.id);
         }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          if (enterable) onEnter(building.id);
+        }}
         onPointerOver={over}
         onPointerOut={out}
-        castShadow
-        receiveShadow
       >
-        <boxGeometry args={[width, height, depth]} />
+        {kind === "orchestrator" ? (
+          <cylinderGeometry args={[width / 1.7, width / 1.7, height, 24]} />
+        ) : (
+          <boxGeometry args={[width, height, depth]} />
+        )}
         <meshStandardMaterial
           color={color}
           emissive={color}
           emissiveIntensity={emissiveIntensity}
           transparent={opacity < 1}
           opacity={opacity}
-          metalness={0.2}
-          roughness={0.55}
+          metalness={0.25}
+          roughness={0.5}
         />
       </mesh>
 
-      {/* Dangling / dynamic invoke beacon (RISK-01: surfaced, not hidden). */}
-      {building.danglingInvokes > 0 && !dimmed && (
-        <mesh position={[x, height + 10, z]}>
-          <coneGeometry args={[3, 12, 8]} />
-          <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={0.8} />
+      {/* "Enterable" base ring, brightened on focus. */}
+      {enterable && !dimmed && (
+        <mesh position={[x, 0.3, z]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[width * 0.75, width * 0.92, 32]} />
+          <meshBasicMaterial color={color} transparent opacity={selected || hovered ? 0.9 : 0.35} />
         </mesh>
       )}
 
       {(showLabel || selected || hovered) && (
-        <Html position={[x, height + 6, z]} center distanceFactor={340} pointerEvents="none" zIndexRange={[10, 0]}>
+        <Html position={[x, height + 7, z]} center distanceFactor={360} pointerEvents="none" zIndexRange={[10, 0]}>
           <div
             style={{
-              padding: "2px 7px",
-              borderRadius: 5,
-              background: selected ? "rgba(56,189,248,0.95)" : "rgba(15,23,42,0.8)",
+              padding: "2px 8px",
+              borderRadius: 6,
+              background: selected ? color : "rgba(15,23,42,0.82)",
               color: selected ? "#0b1220" : "#e2e8f0",
               border: `1px solid ${color}`,
               fontSize: 12,
@@ -78,7 +85,8 @@ export default function Building({ building, selected, dimmed, showLabel, onSele
               userSelect: "none",
             }}
           >
-            {building.workflow.displayName || building.id}
+            {building.zone.label}
+            {enterable && (selected || hovered) ? "  ⤵" : ""}
           </div>
         </Html>
       )}

@@ -44,13 +44,28 @@ export function assembleIR(project: ProjectMeta, files: SourceFile[]): IRGraph {
     warnings.push(...parsed.warnings);
     unknownTargets += parsed.targets.filter((t) => t.system === "unknown").length;
 
+    // Resolve each state's raw body-invokes to workflow ids (dedup, keep order).
+    const states = parsed.states.map((s) => {
+      const invokes: string[] = [];
+      const seen = new Set<string>();
+      for (const raw of s.rawInvokes) {
+        if (raw.trim().startsWith("[")) continue; // dynamic — not a drillable child
+        const id = normalizeId(raw);
+        if (idSet.has(id) && !seen.has(id)) {
+          seen.add(id);
+          invokes.push(id);
+        }
+      }
+      return { name: s.name, displayName: s.displayName, isFinal: s.isFinal, invokes, activityCount: s.activityCount };
+    });
+
     workflows.push({
       id: file.id,
       displayName: parsed.displayName,
       filePath: file.id,
       kind: parsed.kind,
       arguments: parsed.arguments,
-      states: parsed.states,
+      states,
       activityCounts: parsed.activityCounts,
       targets: parsed.targets,
     });

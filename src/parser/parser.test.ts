@@ -53,6 +53,21 @@ describe("M0 parser → IR (vanilla REFramework)", () => {
     expect(main!.states.some((s) => s.isFinal)).toBe(true);
   });
 
+  it("attributes invoked workflows to the correct state (State.Entry, not transitions)", () => {
+    const main = ir.workflows.find((w) => w.id === "Main.xaml")!;
+    const byName = (dn: string) => main.states.find((s) => s.displayName === dn)!;
+    // Each state's body-invokes belong to it, not bled from the nested next state.
+    expect(byName("Initialization").invokes).toContain("Framework/InitAllSettings.xaml");
+    expect(byName("Get Transaction Data").invokes).toEqual(["Framework/GetTransactionData.xaml"]);
+    expect(byName("Process Transaction").invokes).toEqual(
+      expect.arrayContaining(["Process.xaml", "Framework/SetTransactionStatus.xaml"]),
+    );
+    expect(byName("End Process").invokes).toContain("Framework/CloseAllApplications.xaml");
+    // Initialization must NOT contain a downstream state's invoke.
+    expect(byName("Initialization").invokes).not.toContain("Framework/GetTransactionData.xaml");
+    for (const s of main.states) expect(s.activityCount).toBeGreaterThan(0);
+  });
+
   it("extracts Main's arguments including the Orchestrator queue name", () => {
     const main = ir.workflows.find((w) => w.id === "Main.xaml")!;
     const queueArg = main.arguments.find((a) => a.name === "in_OrchestratorQueueName");

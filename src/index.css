@@ -89,8 +89,29 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 .legend-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
 
 /* ── Detail panel ── */
-.detail { position: absolute; top: 12px; right: 12px; width: 340px; max-height: calc(100% - 24px); overflow: auto;
-  background: rgba(15,23,42,0.95); border: 1px solid var(--border); border-radius: 12px; padding: 14px; backdrop-filter: blur(8px); }
+.detail { position: absolute; top: 12px; right: 12px; width: 440px; max-width: 42vw; max-height: calc(100% - 24px); overflow: auto;
+  background: rgba(15,23,42,0.96); border: 1px solid var(--border); border-radius: 12px; padding: 18px; backdrop-filter: blur(8px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45); }
+.detail h2 { font-size: 1.15rem; }
+.detail-summary { color: var(--muted); font-size: 0.9rem; margin: 8px 0 12px; }
+.ghosttag { color: var(--muted); }
+.enter-btn { width: 100%; background: var(--accent); color: #05121f; border: 0; padding: 10px; border-radius: 9px;
+  font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; }
+.enter-btn:hover { filter: brightness(1.08); }
+.contains { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.contains li { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; }
+.c-label { flex: 1; word-break: break-word; }
+.c-kind { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ── Breadcrumb ── */
+.breadcrumb { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 6px 14px; background: var(--panel-2);
+  border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+.crumb { background: transparent; border: 0; color: var(--accent); padding: 2px 4px; }
+.crumb.current { color: var(--text); font-weight: 600; }
+.crumb:disabled { cursor: default; }
+.crumb-sep { color: var(--muted); }
+.crumb-hint { color: var(--muted); margin-left: 8px; font-size: 0.78rem; }
+.legend-hint { color: var(--muted); font-size: 0.72rem; margin-top: 4px; border-top: 1px solid var(--border); padding-top: 4px; }
 .detail-head { display: flex; align-items: center; gap: 8px; }
 .detail-head h2 { font-size: 1.05rem; margin: 0; flex: 1; word-break: break-word; }
 .icon-btn { background: transparent; border: 0; color: var(--muted); font-size: 1rem; }

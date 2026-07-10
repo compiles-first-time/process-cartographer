@@ -15,18 +15,27 @@
  *     target is only known at runtime (RISK-01 / a real REFramework edge case).
  */
 import { XMLParser } from "fast-xml-parser";
-import type { Argument, ArgumentDirection, StateNode, Target, WorkflowKind } from "../ir/schema.ts";
+import type { Argument, ArgumentDirection, Target, WorkflowKind } from "../ir/schema.ts";
 
 /** A raw invoke reference; the orchestrator resolves `to`/`resolved` against the file set. */
 export interface RawInvoke {
   raw: string;
 }
 
+/** A state as parsed — invokes are still RAW filenames (assembleIR resolves them to ids). */
+export interface ParsedState {
+  name: string;
+  displayName?: string;
+  isFinal: boolean;
+  activityCount: number;
+  rawInvokes: string[];
+}
+
 export interface ParsedWorkflow {
   displayName?: string;
   kind: WorkflowKind;
   arguments: Argument[];
-  states: StateNode[];
+  states: ParsedState[];
   activityCounts: Record<string, number>;
   targets: Target[];
   rawInvokes: RawInvoke[];
@@ -94,7 +103,39 @@ function attr(el: unknown, name: string): string | undefined {
   return undefined;
 }
 
+function childByLocalName(el: unknown, localName: string): unknown {
+  if (!el || typeof el !== "object") return undefined;
+  for (const [key, val] of Object.entries(el as Record<string, unknown>)) {
+    if (key.startsWith(ATTR_PREFIX)) continue;
+    if (localNameOf(key) === localName) return val;
+  }
+  return undefined;
+}
+
 type Visitor = (localName: string, rawTag: string, element: unknown) => void;
+
+/**
+ * Analyze a state's OWN body (State.Entry / State.Exit) for its invokes and
+ * activity count — deliberately NOT descending into State.Transitions, because
+ * REFramework nests the *next* state inside `<Transition.To>` and we must not
+ * attribute a child state's invokes to its parent.
+ */
+function analyzeStateBody(stateEl: unknown): { rawInvokes: string[]; activityCount: number } {
+  const rawInvokes: string[] = [];
+  let activityCount = 0;
+  for (const bodyKey of ["State.Entry", "State.Exit"]) {
+    const body = childByLocalName(stateEl, bodyKey);
+    if (!body) continue;
+    visitElements(body, (ln, _tag, elm) => {
+      if (!isPlumbing(ln)) activityCount++;
+      if (ln === "InvokeWorkflowFile") {
+        const wf = attr(elm, "WorkflowFileName");
+        if (wf) rawInvokes.push(wf);
+      }
+    });
+  }
+  return { rawInvokes, activityCount };
+}
 
 /** Depth-first visit of every element node exactly once. */
 function visitElements(container: unknown, cb: Visitor): void {
@@ -241,7 +282,7 @@ function extractArguments(root: Record<string, unknown>): Argument[] {
 export function parseXamlWorkflow(xml: string, label = "<workflow>"): ParsedWorkflow {
   const warnings: string[] = [];
   const activityCounts: Record<string, number> = {};
-  const states: StateNode[] = [];
+  const states: ParsedState[] = [];
   const targets: Target[] = [];
   const rawInvokes: RawInvoke[] = [];
   let activityCount = 0;
@@ -280,7 +321,8 @@ export function parseXamlWorkflow(xml: string, label = "<workflow>"): ParsedWork
       // A terminal state is either the WF `FinalState` element or a `State`
       // carrying `IsFinal="True"` (REFramework's Main marks "End Process" this way).
       const isFinal = localName === "FinalState" || /^true$/i.test(attr(element, "IsFinal") ?? "");
-      states.push({ name, displayName, isFinal });
+      const { rawInvokes: stateInvokes, activityCount } = analyzeStateBody(element);
+      states.push({ name, displayName, isFinal, rawInvokes: stateInvokes, activityCount });
     }
 
     if (localName === "InvokeWorkflowFile") {

@@ -6,7 +6,7 @@
       "properties": {
         "version": {
           "type": "string",
-          "const": "0.1.0"
+          "const": "0.2.0"
         },
         "project": {
           "type": "object",
@@ -94,11 +94,22 @@
                     },
                     "isFinal": {
                       "type": "boolean"
+                    },
+                    "invokes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "activityCount": {
+                      "type": "number"
                     }
                   },
                   "required": [
                     "name",
-                    "isFinal"
+                    "isFinal",
+                    "invokes",
+                    "activityCount"
                   ],
                   "additionalProperties": false
                 }
@@ -249,5 +260,5 @@
     }
   },
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "process-cartographer IR v0.1.0"
+  "title": "process-cartographer IR v0.2.0"
 }

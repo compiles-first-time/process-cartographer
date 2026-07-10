@@ -10,7 +10,7 @@
  */
 import { z } from "zod";
 
-export const IR_SCHEMA_VERSION = "0.1.0";
+export const IR_SCHEMA_VERSION = "0.2.0";
 
 /** Which system + area an activity touches (M0: best-effort; M2/M3 deepen it). */
 export const SystemKind = z.enum([
@@ -54,6 +54,10 @@ export const StateNode = z.object({
   name: z.string(),
   displayName: z.string().optional(),
   isFinal: z.boolean(),
+  /** Resolved workflow ids invoked in this state's body (State.Entry/Exit), in order. */
+  invokes: z.array(z.string()),
+  /** Non-plumbing activity occurrences within this state's body. */
+  activityCount: z.number(),
 });
 export type StateNode = z.infer<typeof StateNode>;
 
