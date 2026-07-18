@@ -1,0 +1,32 @@
+{
+  "$comment": "B2 oracle corpus (ADR-0055 §B.5). Each entry is a pinned-SHA repo the differential harness measures the shipped resolver against. Thresholds are CI floors (--assert), set from the last published run minus slack — raise them deliberately, never silently. Updating a SHA is a corpus change: re-run, re-publish, re-set thresholds in the same commit.",
+  "entries": [
+    {
+      "id": "express",
+      "repo": "expressjs/express",
+      "sha": "ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4",
+      "language": "js",
+      "why": "plain-JS CommonJS (require) — the non-tsconfig path; prior live E2E proof repo",
+      "thresholds": { "precision": 0.99, "recall": 0.99 },
+      "triage": "Measured 2026-07-18: P 100.00% / R 100.00%, 153 edges, zero disagreements."
+    },
+    {
+      "id": "vue-core",
+      "repo": "vuejs/core",
+      "sha": "fa2885d8c48768d26f1666a01bd540ffe3b20f9b",
+      "language": "ts",
+      "why": "TS monorepo with real tsconfig paths aliases (@vue/* → packages/*/src) — the B1 compiler-resolution exercise",
+      "thresholds": { "precision": 0.98, "recall": 0.99 },
+      "triage": "Measured 2026-07-18: P 99.33% / R 100.00%, 1789 edges. First run caught a real B1 bug (bare-dot `import from '.'` — trailing-slash directoryExists probe; fixed + regression-tested same day; recall 99.83%→100%). The 12 remaining oursOnly are one class: shim .js files (packages/vue/compiler-sfc/*, jsx-runtime/*, server-renderer/*) importing '@vue/x' — we + the tsc oracle apply the repo's own tsconfig paths (→ packages/x/src/index.ts); dependency-cruiser + madge resolve by package semantics instead. A 2-vs-2 modeling split, not an invention: the target file is real and the mapping is the repo's own declared config."
+    },
+    {
+      "id": "swarm",
+      "repo": "openai/swarm",
+      "sha": "6af0b4caf37dca4526dfd98e9fbd8ce36e7eeb22",
+      "language": "python",
+      "why": "Python package — Grimp differential for the spec-implemented import algorithm; prior live E2E proof repo",
+      "thresholds": { "precision": 0.85, "recall": 0.99 },
+      "triage": "Measured 2026-07-18: P 85.71% / R 100.00% within grimp's model scope (importable package modules); 53 our-edges outside that scope (script files without __init__ chains) spot-verified real and disclosed, not scored. The 3 in-scope oursOnly (examples/airline, examples/personal_shopper) are script-execution sys.path edges (`from configs.tools import *`, `import database`) — real when the file runs as a script (exactly how these examples run), invisible to grimp's package-import model. Our IR discloses script-execution semantics as an assumption; the measured number is published unadjusted."
+    }
+  ]
+}

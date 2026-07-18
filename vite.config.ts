@@ -17,6 +17,7 @@ export default defineConfig({
     globals: true,
     environment: "node",
     // The 3D renderer (M1+) will need jsdom; the M0 parser is pure Node.
-    include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // oracle/ = the B2 differential harness's pure math (no network in tests).
+    include: ["src/**/*.{test,spec}.{ts,tsx}", "oracle/**/*.{test,spec}.ts"],
   },
 });

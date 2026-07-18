@@ -1,0 +1,52 @@
+# CI — tests + the B2 oracle accuracy gate (ADR-0055 §B.5).
+# The oracle job re-measures the shipped resolver against independent tools on
+# the pinned corpus and FAILS the build if precision/recall drop below the
+# floors in oracle/corpus.json. Accuracy regressions cannot land silently.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: loom doctor (hard checks)
+        run: node scripts/lib/doctor.mjs
+
+  oracle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - run: python -m pip install grimp
+      - name: cache pinned corpus downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: oracle/.cache
+          key: oracle-corpus-${{ hashFiles('oracle/corpus.json') }}
+      - name: oracle differential (gated)
+        run: node oracle/harness.ts --assert
+      - name: upload full results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: oracle-results
+          path: oracle/results/latest.json

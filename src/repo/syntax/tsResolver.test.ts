@@ -32,6 +32,7 @@ const APP_IMPORTS: ImportFact[] = [
   imp("./other", 3), // plain relative (compiler also answers)
   imp("react", 4), // real external — must NOT resolve
   imp("cfg.plugin", 5, true), // dynamic — never touched
+  imp(".", 6), // bare-dot directory import (vue-core pattern; B2 oracle catch)
 ];
 
 function makeInputs() {
@@ -49,6 +50,17 @@ describe("computeTsOverrides (B1)", () => {
     expect(res.overrides.get(overrideKey("src/app.ts", "@lib/util"))).toBe("src/lib/util.ts");
     expect(res.overrides.get(overrideKey("src/app.ts", "@core"))).toBe("src/core/index.ts");
     expect(res.overrides.get(overrideKey("src/app.ts", "./other"))).toBe("src/other.ts");
+  });
+
+  it('resolves a bare-dot directory import to the sibling index (regression: TS probes "dir/" with a trailing slash — first B2 oracle-differential catch, vuejs/core 2026-07-18)', () => {
+    // src/app.ts sits next to no index — add one under src/ via a fresh input set.
+    const files = [...FILES, { path: "src/index.ts", text: "x\n" }];
+    const r = computeTsOverrides(
+      files.map((f) => f.path),
+      new Map(files.map((f) => [f.path, f.text!])),
+      new Map([["src/app.ts", [imp(".", 1)]]]),
+    );
+    expect(r.overrides.get(overrideKey("src/app.ts", "."))).toBe("src/index.ts");
   });
 
   it("never claims external packages or dynamic imports", () => {

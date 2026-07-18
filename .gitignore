@@ -63,6 +63,9 @@ coverage/
 .nyc_output/
 *.lcov
 
+# B2 oracle harness — downloaded pinned-SHA corpus (rebuildable; results ARE committed)
+oracle/.cache/
+
 # OS
 .AppleDouble
 .LSOverride

@@ -1,0 +1,39 @@
+{
+  "generatedAt": "2026-07-18T20:11:04.383Z",
+  "note": "Measured on the pinned oracle corpus (oracle/corpus.json), NOT on the currently loaded repo. See docs/accuracy.md.",
+  "entries": [
+    {
+      "id": "express",
+      "repo": "expressjs/express",
+      "sha": "ae6dd37",
+      "language": "js",
+      "method": "2-of-3 oracle vote (dependency-cruiser, madge, TypeScript compiler over real FS)",
+      "precision": 1,
+      "recall": 1,
+      "ours": 153,
+      "truth": 153
+    },
+    {
+      "id": "vue-core",
+      "repo": "vuejs/core",
+      "sha": "fa2885d",
+      "language": "ts",
+      "method": "2-of-3 oracle vote (dependency-cruiser, madge, TypeScript compiler over real FS)",
+      "precision": 0.9932923420905534,
+      "recall": 1,
+      "ours": 1789,
+      "truth": 1777
+    },
+    {
+      "id": "swarm",
+      "repo": "openai/swarm",
+      "sha": "6af0b4c",
+      "language": "python",
+      "method": "single-oracle differential vs grimp (disclosed: 1 oracle, no vote; scope = files grimp models as importable modules — script files without __init__ chains are outside it, disclosed as outOfScope)",
+      "precision": 0.8571428571428571,
+      "recall": 1,
+      "ours": 21,
+      "truth": 18
+    }
+  ]
+}

@@ -29,7 +29,12 @@ export interface TsOverridesResult {
 const TS_JS_RE = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i;
 
 function strip(p: string): string {
-  return p.replace(/\\/g, "/").replace(/^\/+/, "");
+  // Trailing slashes too: for a bare "." import TS probes directoryExists
+  // with "dir/" — without normalizing, the prefix check built "dir//" and the
+  // probe failed, so `import x from "."` never resolved (found by the B2
+  // oracle differential on vuejs/core, 2026-07-18: 3 unanimous-oracle edges
+  // missing, all `from "."`).
+  return p.replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "");
 }
 
 export function computeTsOverrides(

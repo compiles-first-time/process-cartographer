@@ -1,0 +1,132 @@
+{
+  "generatedAt": "2026-07-18T20:11:04.383Z",
+  "reports": [
+    {
+      "id": "express",
+      "repo": "expressjs/express",
+      "sha": "ae6dd37680e3a00618d6c8a3e522f0ee4eeba1a4",
+      "language": "js",
+      "method": "2-of-3 oracle vote (dependency-cruiser, madge, TypeScript compiler over real FS)",
+      "files": {
+        "total": 213,
+        "analyzed": 141,
+        "parseCleanPct": 100
+      },
+      "precision": 1,
+      "recall": 1,
+      "ours": 153,
+      "truth": 153,
+      "agreed": 153,
+      "oracles": {
+        "depcruise": {
+          "edges": 153,
+          "agreedWithOurs": 153
+        },
+        "madge": {
+          "edges": 153,
+          "agreedWithOurs": 153
+        },
+        "tsc": {
+          "edges": 153,
+          "agreedWithOurs": 153
+        }
+      },
+      "disagreements": {
+        "oursOnly": [],
+        "oursOnlyTotal": 0,
+        "truthOnly": [],
+        "truthOnlyTotal": 0
+      },
+      "warnings": [],
+      "ms": 1417
+    },
+    {
+      "id": "vue-core",
+      "repo": "vuejs/core",
+      "sha": "fa2885d8c48768d26f1666a01bd540ffe3b20f9b",
+      "language": "ts",
+      "method": "2-of-3 oracle vote (dependency-cruiser, madge, TypeScript compiler over real FS)",
+      "files": {
+        "total": 704,
+        "analyzed": 526,
+        "parseCleanPct": 99.61977186311786
+      },
+      "precision": 0.9932923420905534,
+      "recall": 1,
+      "ours": 1789,
+      "truth": 1777,
+      "agreed": 1777,
+      "oracles": {
+        "depcruise": {
+          "edges": 1132,
+          "agreedWithOurs": 1127
+        },
+        "madge": {
+          "edges": 1776,
+          "agreedWithOurs": 1776
+        },
+        "tsc": {
+          "edges": 1789,
+          "agreedWithOurs": 1787
+        }
+      },
+      "disagreements": {
+        "oursOnly": [
+          "packages-private/sfc-playground/src/download/template/main.js → packages/vue/src/index.ts",
+          "packages/vue/compiler-sfc/index.browser.js → packages/compiler-sfc/src/index.ts",
+          "packages/vue/compiler-sfc/index.browser.mjs → packages/compiler-sfc/src/index.ts",
+          "packages/vue/compiler-sfc/index.d.mts → packages/compiler-sfc/src/index.ts",
+          "packages/vue/compiler-sfc/index.js → packages/compiler-sfc/src/index.ts",
+          "packages/vue/compiler-sfc/index.mjs → packages/compiler-sfc/src/index.ts",
+          "packages/vue/compiler-sfc/register-ts.js → packages/compiler-sfc/src/index.ts",
+          "packages/vue/jsx-runtime/index.js → packages/vue/src/index.ts",
+          "packages/vue/jsx-runtime/index.mjs → packages/vue/src/index.ts",
+          "packages/vue/server-renderer/index.d.mts → packages/server-renderer/src/index.ts",
+          "packages/vue/server-renderer/index.js → packages/server-renderer/src/index.ts",
+          "packages/vue/server-renderer/index.mjs → packages/server-renderer/src/index.ts"
+        ],
+        "oursOnlyTotal": 12,
+        "truthOnly": [],
+        "truthOnlyTotal": 0
+      },
+      "warnings": [],
+      "ms": 9074
+    },
+    {
+      "id": "swarm",
+      "repo": "openai/swarm",
+      "sha": "6af0b4caf37dca4526dfd98e9fbd8ce36e7eeb22",
+      "language": "python",
+      "method": "single-oracle differential vs grimp (disclosed: 1 oracle, no vote; scope = files grimp models as importable modules — script files without __init__ chains are outside it, disclosed as outOfScope)",
+      "files": {
+        "total": 288,
+        "analyzed": 23,
+        "parseCleanPct": 100
+      },
+      "precision": 0.8571428571428571,
+      "recall": 1,
+      "ours": 21,
+      "truth": 18,
+      "agreed": 18,
+      "oracles": {
+        "grimp": {
+          "edges": 18,
+          "agreedWithOurs": 18
+        }
+      },
+      "disagreements": {
+        "oursOnly": [
+          "examples/airline/configs/agents.py → examples/airline/configs/tools.py",
+          "examples/airline/main.py → examples/airline/configs/agents.py",
+          "examples/personal_shopper/main.py → examples/personal_shopper/database.py"
+        ],
+        "oursOnlyTotal": 3,
+        "truthOnly": [],
+        "truthOnlyTotal": 0
+      },
+      "outOfScope": 53,
+      "warnings": [],
+      "ms": 476
+    }
+  ]
+}

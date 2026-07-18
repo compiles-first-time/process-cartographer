@@ -4,7 +4,7 @@
 
 > Manual additions: write below the `<!-- end-of-generated -->` marker. The auto-generated section above will be overwritten on next run; your manual section will be preserved.
 
-Generated: 2026-07-09T01:35:02.982Z
+Generated: 2026-07-18T19:39:35.305Z
 
 ## MCP servers available to this Claude Code installation
 
@@ -23,25 +23,26 @@ Marketplace / runtime-injected MCPs may not appear in static config files. Add t
 
 | File | Status |
 |---|---|
-| `auth.md` | **STALE** — newer than discovery sentinel; not invokable until Claude Code restart |
+| `auth.md` | ✓ in registry (assumed loaded at session start) |
 | `ci.md` | ✓ in registry (assumed loaded at session start) |
-| `constitution-service.md` | **STALE** — newer than discovery sentinel; not invokable until Claude Code restart |
+| `constitution-service.md` | ✓ in registry (assumed loaded at session start) |
 | `credential-setup.md` | ✓ in registry (assumed loaded at session start) |
 | `critic.md` | ✓ in registry (assumed loaded at session start) |
 | `db-migration.md` | ✓ in registry (assumed loaded at session start) |
-| `deploy.md` | **STALE** — newer than discovery sentinel; not invokable until Claude Code restart |
+| `deploy.md` | ✓ in registry (assumed loaded at session start) |
 | `eac.md` | ✓ in registry (assumed loaded at session start) |
 | `email.md` | ✓ in registry (assumed loaded at session start) |
 | `error-tracking.md` | ✓ in registry (assumed loaded at session start) |
 | `file-storage.md` | ✓ in registry (assumed loaded at session start) |
 | `hr.md` | ✓ in registry (assumed loaded at session start) |
-| `human-replica.md` | **STALE** — newer than discovery sentinel; not invokable until Claude Code restart |
+| `human-replica.md` | ✓ in registry (assumed loaded at session start) |
 | `memory-keeper.md` | ✓ in registry (assumed loaded at session start) |
 | `monitoring.md` | ✓ in registry (assumed loaded at session start) |
 | `oauth.md` | ✓ in registry (assumed loaded at session start) |
 | `payments.md` | ✓ in registry (assumed loaded at session start) |
 | `queues.md` | ✓ in registry (assumed loaded at session start) |
 | `secrets.md` | ✓ in registry (assumed loaded at session start) |
+| `uipath-xaml.md` | **STALE** — newer than discovery sentinel; not invokable until Claude Code restart |
 
 **Action:** Restart Claude Code so the Agent tool can see the newer subagent files. After restarting and confirming the agents work (try `Agent(subagent_type="critic", ...)`), run:
 
