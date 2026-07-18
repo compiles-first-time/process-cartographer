@@ -13,6 +13,7 @@ import { validateRepoIR, type FileNode, type RepoIR, type RepoMeta, type Exclude
 import { detectLanguage } from "./detectLanguage.ts";
 import { classifyFile, excludedDirOf, looksBinary, hygieneAssumptions } from "./hygiene.ts";
 import type { FileSyntax } from "./syntax/facts.ts";
+import { resolveImportEdges, RESOLUTION_ASSUMPTIONS } from "./resolveImports.ts";
 
 export const LOC_RULE =
   "lines = physical newline-delimited lines; linesNonEmpty = lines with at least one non-whitespace character; no comment/blank semantics applied";
@@ -41,13 +42,20 @@ function byteLength(text: string): number {
   return new TextEncoder().encode(text).length;
 }
 
+export interface AssembleOptions {
+  /** U1 syntax-tier facts by path (absent → files stay "not-analyzed"). */
+  syntax?: Map<string, FileSyntax>;
+  extraWarnings?: string[];
+  /** User-granted "parse this directory" overrides (exclusion bypass). */
+  includeDirs?: string[];
+}
+
 export function assembleRepoIR(
   repo: RepoMeta,
   rawFiles: RepoRawFile[],
-  /** U1 syntax-tier facts by path (absent → files stay "not-analyzed"). */
-  syntax?: Map<string, FileSyntax>,
-  extraWarnings: string[] = [],
+  opts: AssembleOptions = {},
 ): RepoIR {
+  const { syntax, extraWarnings = [], includeDirs = [] } = opts;
   const warnings: string[] = [...extraWarnings];
 
   // 1. Prune excluded directories wholesale, summarizing per dir (rule + count).
@@ -55,7 +63,7 @@ export function assembleRepoIR(
   const surviving: RepoRawFile[] = [];
   for (const f of rawFiles) {
     const path = f.path.replace(/\\/g, "/").replace(/^\.\//, "").replace(/^\//, "");
-    const ex = excludedDirOf(path);
+    const ex = excludedDirOf(path, includeDirs);
     if (ex) {
       excludedDirCounts.set(ex, (excludedDirCounts.get(ex) ?? 0) + 1);
       continue;
@@ -152,12 +160,21 @@ export function assembleRepoIR(
       ? (files.filter((f) => f.parseStatus === "parse-clean").length / analyzed.length) * 100
       : null;
 
+  // Cross-file import edges from as-written facts (only when the syntax tier ran).
+  const edges = syntax ? resolveImportEdges(files) : [];
+  const edgesByResolution: Record<string, number> = {};
+  for (const e of edges) edgesByResolution[e.resolution] = (edgesByResolution[e.resolution] ?? 0) + 1;
+
+  const assumptions = [...hygieneAssumptions()];
+  if (syntax) assumptions.push(...RESOLUTION_ASSUMPTIONS);
+  if (includeDirs.length > 0) assumptions.push(`User-included directories (exclusion overridden): ${includeDirs.join(", ")}`);
+
   const ir: RepoIR = {
     version: "0.1.0",
     irKind: "repo",
     repo,
     files,
-    edges: [], // U0: no cross-file edges; U2 populates under the accuracy contract
+    edges,
     diagnostics: {
       filesTotal: files.length,
       filesSkipped,
@@ -166,9 +183,9 @@ export function assembleRepoIR(
       locTotal,
       locRule: LOC_RULE,
       languages: Object.fromEntries([...languages.entries()].sort((a, b) => a[0].localeCompare(b[0]))),
-      edgesByResolution: {},
+      edgesByResolution,
       parseCleanPct,
-      assumptions: hygieneAssumptions(),
+      assumptions,
       warnings,
     },
   };

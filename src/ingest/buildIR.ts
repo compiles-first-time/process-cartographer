@@ -62,6 +62,7 @@ export async function buildLoadedWithSyntax(
   ingested: IngestedProject,
   syntaxEnv: import("../repo/syntax/analyze.ts").SyntaxEnv,
   onPhase?: (message: string | null) => void,
+  includeDirs: string[] = [],
 ): Promise<Loaded> {
   if (isUiPathProject(ingested)) {
     return { kind: "uipath", ir: buildIR(ingested) };
@@ -71,8 +72,10 @@ export async function buildLoadedWithSyntax(
   try {
     const { analyzeFiles } = await import("../repo/syntax/analyze.ts");
     const { grammarFor } = await import("../repo/syntax/facts.ts");
+    const { excludedDirOf } = await import("../repo/hygiene.ts");
     const eligible = files.filter(
-      (f): f is typeof f & { text: string } => f.text != null && grammarFor(f.path) != null && !excludedLike(f),
+      (f): f is typeof f & { text: string } =>
+        f.text != null && grammarFor(f.path) != null && !excludedLike(f) && excludedDirOf(f.path, includeDirs) == null,
     );
     onPhase?.(eligible.length > 0 ? `parsing ${eligible.length} JS/TS files…` : null);
     const { facts, warnings } = await analyzeFiles(
@@ -81,13 +84,16 @@ export async function buildLoadedWithSyntax(
       (done, total) => onPhase?.(`parsing ${done}/${total} JS/TS files…`),
     );
     onPhase?.(null);
-    return { kind: "repo", ir: assembleRepoIR(meta, files, facts, warnings) };
+    return { kind: "repo", ir: assembleRepoIR(meta, files, { syntax: facts, extraWarnings: warnings, includeDirs }) };
   } catch (err) {
     return {
       kind: "repo",
-      ir: assembleRepoIR(meta, files, undefined, [
-        `Syntax tier unavailable (${(err as Error).message}) — rendering tier-0 inventory only; JS/TS files remain "not-analyzed".`,
-      ]),
+      ir: assembleRepoIR(meta, files, {
+        extraWarnings: [
+          `Syntax tier unavailable (${(err as Error).message}) — rendering tier-0 inventory only; JS/TS files remain "not-analyzed".`,
+        ],
+        includeDirs,
+      }),
     };
   }
 }

@@ -27,6 +27,13 @@ export interface IngestedProject {
   sourceLabel: string;
   /** Ingest-level notes/warnings (skipped files, truncated trees, missing project.json). */
   notes: string[];
+  /**
+   * On-demand inclusion (ADR-0055 "parse this directory" from inside the map):
+   * fetch/read/decode the text of files under `dirPrefix` that were not loaded
+   * at ingest (excluded dirs). Per-file hygiene (binary/size) still applies
+   * inside. Non-serializable capability — memory-only, absent on IR-JSON loads.
+   */
+  expandDir?: (dirPrefix: string) => Promise<RepoRawFile[]>;
 }
 
 export type IngestSource = "folder" | "nupkg" | "github" | "ir-json";

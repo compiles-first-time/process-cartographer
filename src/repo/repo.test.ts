@@ -112,13 +112,16 @@ describe("buildRepoCityModel", () => {
 
   it("maps dirs to districts and files to buildings with LOC weights", () => {
     expect(city.kind).toBe("city");
-    const districts = city.children.filter((c) => c.kind === "district");
+    const districts = city.children.filter((c) => c.kind === "district" && !c.excludedDir);
     const files = city.children.filter((c) => c.kind === "file");
     expect(districts.map((d) => d.label).sort()).toEqual(["assets", "src", "tools"]);
     expect(files.map((f) => f.label).sort()).toEqual(["README.md", "big.sql"]);
     const src = districts.find((d) => d.label === "src")!;
     expect(src.children.length).toBe(3);
     expect(src.weight).toBe(src.children.reduce((n, c) => n + c.weight, 0));
+    // The pruned node_modules is VISIBLE as a ghost district (never silent).
+    const ghost = city.children.find((c) => c.excludedDir);
+    expect(ghost?.excludedDir?.dir).toBe("node_modules");
   });
 
   it("marks skipped files honestly in their zone summary", () => {

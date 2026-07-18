@@ -81,6 +81,13 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 .diag-detail { max-height: 220px; overflow: auto; padding-bottom: 6px; }
 .ghost-pill { opacity: 0.65; font-style: italic; }
 .mini-h { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 8px 0 3px; }
+
+/* ── AI interpretation (ADR-0056): visually distinct = interpretation, not fact ── */
+.ai-disclaimer { color: var(--warn); font-size: 0.75rem; border: 1px dashed var(--warn); border-radius: 7px;
+  padding: 5px 8px; opacity: 0.85; }
+.ai-btn { background: transparent; color: var(--accent); border: 1px dashed var(--accent); }
+.ai-result { border-left: 2px dashed var(--warn); padding-left: 10px; }
+.ai-result p { font-size: 0.85rem; line-height: 1.45; margin: 2px 0 8px; }
 .pill .swatch.sm { vertical-align: middle; }
 
 /* ── Stage / scene ── */

@@ -187,6 +187,15 @@ export async function ingestFromGithub(url: string, opts: FetchOpts = {}): Promi
   const norm = normalizeProject(uipathRaw);
   if (norm.xamlFiles.length > 0) notes.push(...norm.notes);
 
+  // Paths NOT fetched at ingest (excluded dirs) — expandDir re-fetches on demand.
+  const unfetched = new Map<string, { path: string; size?: number }>();
+  for (const n of inScope) {
+    const relPath = stripSubdir(n.path);
+    if (relPath && excludedDirOf(relPath)) {
+      unfetched.set(relPath, { path: n.path, size: (n as { size?: number }).size });
+    }
+  }
+
   return {
     rootName: (norm.xamlFiles.length > 0 && norm.rootName !== "uipath-project" ? norm.rootName : "") || repo,
     xamlFiles: norm.xamlFiles,
@@ -194,6 +203,30 @@ export async function ingestFromGithub(url: string, opts: FetchOpts = {}): Promi
     allFiles: all,
     sourceLabel: `github: ${owner}/${repo}@${branch}${ref.subdir ? "/" + ref.subdir : ""}`,
     notes,
+    expandDir: async (dirPrefix: string) => {
+      const wanted: { relPath: string; path: string; size?: number }[] = [];
+      const out: RepoRawFile[] = [];
+      for (const [relPath, entry] of unfetched) {
+        if (relPath !== dirPrefix && !relPath.startsWith(dirPrefix + "/")) continue;
+        const verdict = classifyFile(relPath, entry.size);
+        if (!verdict.included) {
+          out.push({ path: relPath, bytes: entry.size ?? 0, skipReason: verdict.reason });
+          continue;
+        }
+        wanted.push({ relPath, path: entry.path, size: entry.size });
+      }
+      if (wanted.length > MAX_FETCH_FILES) {
+        throw new Error(
+          `"${dirPrefix}" has ${wanted.length.toLocaleString()} fetchable files — beyond the per-file fetch ceiling (${MAX_FETCH_FILES.toLocaleString()}). Upload the repo as a .zip to include it.`,
+        );
+      }
+      const fetchedExtra = await mapLimit(wanted, 4, async (n) => {
+        const res = await fetchWithRetry(doFetch, `https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(branch)}/${encodePath(n.path)}`, undefined);
+        if (!res.ok) throw new Error(`Failed to fetch ${n.path} (HTTP ${res.status}).`);
+        return { path: n.relPath, text: await res.text() } as RepoRawFile;
+      });
+      return [...out, ...fetchedExtra];
+    },
   };
 }
 

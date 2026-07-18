@@ -56,6 +56,8 @@ export interface Zone {
   state?: StateNode;
   /** Present on repo file zones (universal cartography, ADR-0055). */
   file?: FileNode;
+  /** Present on excluded-directory ghost zones — offers on-demand inclusion. */
+  excludedDir?: { dir: string; entries?: number };
 }
 
 // ── Palette (shared by scene, legend, panels) ──────────────────────────────

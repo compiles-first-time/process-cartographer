@@ -34,6 +34,8 @@ export async function ingestFromFolder(files: FileList | File[]): Promise<Ingest
 
   const all: RepoRawFile[] = [];
   const uipathRaw: RawFile[] = [];
+  // Retained for on-demand "parse this directory": File handles of unread paths.
+  const unread = new Map<string, File>();
 
   for (const f of list) {
     const path = strip(relPath(f));
@@ -42,6 +44,7 @@ export async function ingestFromFolder(files: FileList | File[]): Promise<Ingest
     // Excluded dirs: pass path+size only — pruned+summarized downstream, never read.
     if (excludedDirOf(path)) {
       all.push({ path, bytes: f.size });
+      unread.set(path, f);
       continue;
     }
     const verdict = classifyFile(path, f.size);
@@ -64,5 +67,18 @@ export async function ingestFromFolder(files: FileList | File[]): Promise<Ingest
     sourceLabel: `folder: ${label}`,
     // UiPath-centric normalize notes are only meaningful when xaml is present.
     notes: norm.xamlFiles.length > 0 ? norm.notes : [],
+    expandDir: async (dirPrefix: string) => {
+      const out: RepoRawFile[] = [];
+      for (const [path, file] of unread) {
+        if (path !== dirPrefix && !path.startsWith(dirPrefix + "/")) continue;
+        const verdict = classifyFile(path, file.size);
+        if (!verdict.included) {
+          out.push({ path, bytes: file.size, skipReason: verdict.reason });
+          continue;
+        }
+        out.push({ path, text: await file.text(), bytes: file.size });
+      }
+      return out;
+    },
   };
 }

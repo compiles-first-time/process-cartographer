@@ -122,7 +122,7 @@ describe("syntax tier — IR integration (U1)", () => {
       RAW.filter((f) => grammarFor(f.path)).map((f) => ({ path: f.path, text: f.text! })),
       nodeEnv,
     );
-    const ir = assembleRepoIR({ name: "u1", source: "test" }, RAW, facts, warnings);
+    const ir = assembleRepoIR({ name: "u1", source: "test" }, RAW, { syntax: facts, extraWarnings: warnings });
 
     const sample = ir.files.find((f) => f.path === "src/sample.ts")!;
     expect(sample.parseStatus).toBe("parse-clean");
@@ -140,7 +140,7 @@ describe("syntax tier — IR integration (U1)", () => {
 
   it("file buildings expose symbols as enterable interiors in the city", async () => {
     const { facts } = await analyzeFiles([{ path: "src/sample.ts", text: TS_SAMPLE }], nodeEnv);
-    const ir = assembleRepoIR({ name: "u1", source: "test" }, RAW, facts);
+    const ir = assembleRepoIR({ name: "u1", source: "test" }, RAW, { syntax: facts });
     const city = buildRepoCityModel(ir);
     const src = city.children.find((z) => z.label === "src")!;
     const fileZone = src.children.find((z) => z.id === "file:src/sample.ts")!;

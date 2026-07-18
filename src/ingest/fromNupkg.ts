@@ -42,12 +42,15 @@ export function ingestFromNupkgBytes(bytes: Uint8Array, fileName: string): Inges
 
   const all: RepoRawFile[] = [];
   const uipathRaw: RawFile[] = [];
+  // Retained for on-demand "parse this directory": undecoded entry bytes.
+  const undecoded = new Map<string, Uint8Array>();
 
   for (const [name, data] of Object.entries(entries)) {
     if (name.endsWith("/")) continue; // directory entry
     const path = safeDecode(name);
     if (excludedDirOf(path)) {
       all.push({ path, bytes: data.length });
+      undecoded.set(path, data);
       continue;
     }
     const verdict = classifyFile(path, data.length);
@@ -69,6 +72,19 @@ export function ingestFromNupkgBytes(bytes: Uint8Array, fileName: string): Inges
     allFiles: all,
     sourceLabel: `archive: ${fileName}`,
     notes,
+    expandDir: async (dirPrefix: string) => {
+      const out: RepoRawFile[] = [];
+      for (const [path, data] of undecoded) {
+        if (path !== dirPrefix && !path.startsWith(dirPrefix + "/")) continue;
+        const verdict = classifyFile(path, data.length);
+        if (!verdict.included) {
+          out.push({ path, bytes: data.length, skipReason: verdict.reason });
+          continue;
+        }
+        out.push({ path, text: strFromU8(data), bytes: data.length });
+      }
+      return out;
+    },
   };
 }
 

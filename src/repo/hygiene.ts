@@ -29,7 +29,10 @@ export const EXCLUDED_DIR_NAMES = new Set([
   ".cache",
   ".idea",
   ".vs",
-  "packages", // NuGet packages folder (UiPath/.NET repos) — vendored deps
+  // NOTE: "packages" is deliberately NOT excluded — in JS monorepos (pnpm/lerna/
+  // nx) packages/ is FIRST-PARTY code. NuGet packages dirs are mostly binaries,
+  // which the per-file binary/size rules skip individually anyway. (User report
+  // 2026-07-18: "it did not parse everything".)
 ]);
 
 /** File extensions treated as binary — never fetched/parsed; rendered as skipped. */
@@ -57,7 +60,12 @@ export interface HygieneVerdict {
   reason?: string;
 }
 
-export function excludedDirOf(path: string): string | null {
+export function excludedDirOf(path: string, includeDirs?: readonly string[]): string | null {
+  // User-granted inclusion overrides (on-demand "parse this directory"): a path
+  // under an included prefix is never excluded, whatever its dir names.
+  if (includeDirs && includeDirs.some((d) => path === d || path.startsWith(d + "/"))) {
+    return null;
+  }
   const parts = path.split("/");
   for (let i = 0; i < parts.length - 1; i++) {
     if (EXCLUDED_DIR_NAMES.has(parts[i].toLowerCase())) {
