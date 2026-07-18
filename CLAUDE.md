@@ -8,7 +8,7 @@
 
 This file is the **primary entry point** for Claude (chat) and Claude Code into this project. Keep it small — hard cap ~10 KB. Detail belongs in [`layers/`](./layers/), not here.
 
-> **Fresh Claude instance? Read [`handoff/2026-07-10-github-push-and-continue-on-personal-pc.md`](./handoff/2026-07-10-github-push-and-continue-on-personal-pc.md) first** — current state + push/clone/continue; it links the earlier handoffs (MVP, kickoff scope). This project is **governed by Loom** and is Loom's **Phase-1 proof vehicle**. Loom itself lives in the sibling `loom-template` repo — don't modify it from here; surface upstream fixes via lessons-learned (`upstream: loom-template`) + the Update Bus.
+> **Fresh Claude instance? Read [`handoff/2026-07-18-universal-cartography-state.md`](./handoff/2026-07-18-universal-cartography-state.md) first** — current state + continuation prompt; it links the roadmap, ADR-0055/0056, and earlier handoffs. This project is **governed by Loom** and is Loom's **Phase-1 proof vehicle**. Loom itself lives in the sibling `loom-template` repo — don't modify it from here; surface upstream fixes via lessons-learned (`upstream: loom-template`) + the Update Bus.
 
 ---
 
