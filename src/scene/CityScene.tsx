@@ -11,6 +11,8 @@ interface CitySceneProps {
   matchedIds: Set<string> | null;
   /** Blast-radius roles at this level (A1) — non-members dim while active. */
   radiusByZone?: Map<string, "self" | "up" | "down" | "both"> | null;
+  /** A3 path roles at this level — the lit corridor; non-members dim while active. */
+  pathByZone?: Map<string, "endpoint" | "hop"> | null;
   /** Coverage fraction 0..1 per zone (E1) — tints buildings red→green. */
   coverageByZone?: Map<string, number> | null;
   reducedMotion: boolean;
@@ -25,12 +27,17 @@ const ROLE_TINT: Record<string, string> = {
   both: "#c084fc",
 };
 
+const PATH_TINT: Record<string, string> = {
+  endpoint: "#34d399", // A and B
+  hop: "#fbbf24", // the corridor between them
+};
+
 /** red (0) → yellow → green (1), readable on the dark theme. */
 function coverageTint(v: number): string {
   return "hsl(" + Math.round(v * 120) + ", 65%, 46%)";
 }
 
-export default function CityScene({ layout, selectedId, matchedIds, radiusByZone, coverageByZone, reducedMotion, onSelect, onEnter }: CitySceneProps) {
+export default function CityScene({ layout, selectedId, matchedIds, radiusByZone, pathByZone, coverageByZone, reducedMotion, onSelect, onEnter }: CitySceneProps) {
   const selected = selectedId ? layout.buildings.find((b) => b.id === selectedId) ?? null : null;
   const span = Math.max(layout.bounds.width, layout.bounds.depth, 140);
   const dist = span * 0.85 + 150;
@@ -73,18 +80,23 @@ export default function CityScene({ layout, selectedId, matchedIds, radiusByZone
         <Pipe
           key={pipe.id}
           pipe={pipe}
-          active={selectedId != null && (pipe.from === selectedId || pipe.to === selectedId)}
-          dimmed={matchedIds != null}
+          active={
+            (selectedId != null && (pipe.from === selectedId || pipe.to === selectedId)) ||
+            (pathByZone != null && pathByZone.has(pipe.from) && pathByZone.has(pipe.to))
+          }
+          dimmed={matchedIds != null || (pathByZone != null && !(pathByZone.has(pipe.from) && pathByZone.has(pipe.to)))}
         />
       ))}
 
       {layout.buildings.map((b) => {
         const role = radiusByZone?.get(b.id) ?? null;
+        const pathRole = pathByZone?.get(b.id) ?? null;
         const cov = coverageByZone?.get(b.id);
-        const tint = role ? ROLE_TINT[role] : cov != null ? coverageTint(cov) : undefined;
+        const tint = pathRole ? PATH_TINT[pathRole] : role ? ROLE_TINT[role] : cov != null ? coverageTint(cov) : undefined;
         const dimmed =
           (matchedIds != null && !matchedIds.has(b.id)) ||
-          (radiusByZone != null && role == null);
+          (radiusByZone != null && role == null) ||
+          (pathByZone != null && pathRole == null);
         return (
           <Building
             key={b.id}

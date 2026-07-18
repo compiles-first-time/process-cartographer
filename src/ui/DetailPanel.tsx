@@ -26,6 +26,9 @@ interface Props {
   radiusActive?: boolean;
   radiusCounts?: { upstream: number; downstream: number } | null;
   onToggleRadius?: () => void;
+  /** A3: this file is the armed path anchor (pick a destination next). */
+  pathArmed?: boolean;
+  onArmPath?: () => void;
   coverageInfo?: { covered: number; total: number } | null;
 }
 
@@ -47,6 +50,8 @@ export default function DetailPanel({
   radiusActive,
   radiusCounts,
   onToggleRadius,
+  pathArmed,
+  onArmPath,
   coverageInfo,
 }: Props) {
   const wf = zone.workflow;
@@ -139,6 +144,20 @@ export default function DetailPanel({
               <span className="rad-up">■</span> {radiusCounts.upstream} upstream (depend on this) ·{" "}
               <span className="rad-down">■</span> {radiusCounts.downstream} downstream (this depends on) ·
               others dimmed. Solid-import edges only.
+            </p>
+          )}
+        </Section>
+      )}
+
+      {/* ── Path A→B (A3): shortest resolved-import path — computed ── */}
+      {file && onArmPath && (
+        <Section title="Path A→B — computed">
+          <button className={pathArmed ? "enter-btn radius-on" : "enter-btn ai-btn"} onClick={onArmPath}>
+            {pathArmed ? "Cancel path anchor" : "◇ Path from here…"}
+          </button>
+          {pathArmed && (
+            <p className="muted small">
+              Now select the destination building — the shortest resolved-import path lights up (reverse direction tried if this file doesn't reach it).
             </p>
           )}
         </Section>

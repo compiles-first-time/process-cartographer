@@ -13,7 +13,7 @@ import { computeLayout } from "./layout/cityLayout.ts";
 import { matchZones } from "./ui/search.ts";
 import { annotateZone, buildContext, DEFAULT_MODEL, DEEPEN_MODEL, PROMPT_VERSION, type Annotation } from "./annotate/annotate.ts";
 import { annotationKey, cacheGet, cachePut } from "./annotate/cache.ts";
-import { blastRadius, type BlastRadius } from "./model/graph.ts";
+import { blastRadius, shortestImportPath, type BlastRadius, type ImportPath } from "./model/graph.ts";
 import { parseCoverage, type CoverageOverlay } from "./overlay/coverage.ts";
 import type { IngestedProject } from "./ingest/types.ts";
 
@@ -45,6 +45,10 @@ export default function App() {
   // Blast radius (roadmap A1) + execution coverage overlay (E1).
   const [radius, setRadius] = useState<BlastRadius | null>(null);
   const [coverage, setCoverage] = useState<CoverageOverlay | null>(null);
+  // Path A→B lighting (A3): arm an anchor file, then selecting a destination
+  // lights the shortest resolved-import path between them.
+  const [pathFrom, setPathFrom] = useState<string | null>(null);
+  const [litPath, setLitPath] = useState<ImportPath | null>(null);
 
   function rememberKey(remember: boolean) {
     setKeyRemembered(remember);
@@ -100,6 +104,56 @@ export default function App() {
     }
     return m;
   }, [radius, current]);
+
+  // Path roles for zones at the CURRENT level (A3) — endpoints vs hops;
+  // districts containing any path node light so the corridor reads from city level.
+  const pathByZone = useMemo(() => {
+    if (!litPath?.nodes || !current) return null;
+    const nodes = new Set(litPath.nodes);
+    const endpoints = new Set([litPath.nodes[0], litPath.nodes[litPath.nodes.length - 1]]);
+    const m = new Map<string, "endpoint" | "hop">();
+    for (const z of current.children) {
+      if (z.file) {
+        if (endpoints.has(z.file.path)) m.set(z.id, "endpoint");
+        else if (nodes.has(z.file.path)) m.set(z.id, "hop");
+      } else if (z.kind === "district" && !z.excludedDir && z.id.startsWith("dir:")) {
+        const prefix = z.id.slice(4) + "/";
+        let hasEndpoint = false;
+        let hasHop = false;
+        for (const p of nodes) {
+          if (p.startsWith(prefix)) {
+            if (endpoints.has(p)) hasEndpoint = true;
+            else hasHop = true;
+          }
+        }
+        if (hasEndpoint) m.set(z.id, "endpoint");
+        else if (hasHop) m.set(z.id, "hop");
+      }
+    }
+    return m;
+  }, [litPath, current]);
+
+  // A3: an armed anchor consumes the NEXT file selection as the destination.
+  useEffect(() => {
+    if (!pathFrom || loaded?.kind !== "repo") return;
+    const dest = selectedZone?.file?.path;
+    if (!dest || dest === pathFrom) return;
+    setLitPath(shortestImportPath(loaded.ir, pathFrom, dest));
+    setPathFrom(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedZone, pathFrom, loaded]);
+
+  /** A3: arm/disarm the path anchor on the selected file. */
+  function armPath(zone: Zone) {
+    if (loaded?.kind !== "repo" || !zone.file) return;
+    if (pathFrom === zone.file.path) {
+      setPathFrom(null);
+      return;
+    }
+    setPathFrom(zone.file.path);
+    setLitPath(null);
+    setRadius(null); // both lenses dim non-members — one at a time
+  }
 
   // Coverage fraction (0..1) per zone at the current level (E1).
   const coverageByZone = useMemo(() => {
@@ -205,7 +259,11 @@ export default function App() {
   function toggleRadius(zone: Zone) {
     if (loaded?.kind !== "repo" || !zone.file) return;
     if (radius?.file === zone.file.path) setRadius(null);
-    else setRadius(blastRadius(loaded.ir, zone.file.path));
+    else {
+      setRadius(blastRadius(loaded.ir, zone.file.path));
+      setLitPath(null); // one dimming lens at a time (see armPath)
+      setPathFrom(null);
+    }
   }
 
   /** Load a coverage artifact (E1) — real execution data, painted on the city. */
@@ -258,6 +316,8 @@ export default function App() {
     setAnnotations(new Map());
     setRadius(null);
     setCoverage(null);
+    setPathFrom(null);
+    setLitPath(null);
     try {
       // Syntax tier env is code-split — wasm loads only for repo ingests.
       const { browserSyntaxEnv } = await import("./repo/syntax/browserEnv.ts");
@@ -277,6 +337,8 @@ export default function App() {
       setAnnotations(new Map());
       setRadius(null);
       setCoverage(null);
+      setPathFrom(null);
+      setLitPath(null);
       present(loadFromIRJson(jsonText), null);
       setIngested(null);
     } catch (err) {
@@ -294,6 +356,8 @@ export default function App() {
     setBusy(true);
     setProgress(`loading ${dir}…`);
     setRadius(null); // edges change after expansion — recompute on demand
+    setPathFrom(null);
+    setLitPath(null);
     try {
       const extra = await ingested.expandDir(dir);
       const byPath = new Map((ingested.allFiles ?? []).map((f) => [f.path, f]));
@@ -410,6 +474,23 @@ export default function App() {
             )}
           </div>
           {query && <span className="match-count">{matchCount}/{layout.buildings.length}</span>}
+          {loaded.kind === "repo" && pathFrom && (
+            <span className="pill cov-chip" title={pathFrom}>
+              ◇ path from {pathFrom.split("/").pop()} — select the destination…
+              <button className="icon-btn" onClick={() => setPathFrom(null)} aria-label="Cancel path anchor">✕</button>
+            </span>
+          )}
+          {loaded.kind === "repo" && litPath && (
+            <span
+              className="pill cov-chip"
+              title={litPath.nodes ? litPath.nodes.join(" → ") : `No resolved-import chain connects ${litPath.a} and ${litPath.b} in either direction`}
+            >
+              {litPath.nodes
+                ? `◇ ${litPath.nodes[0].split("/").pop()} → ${litPath.nodes[litPath.nodes.length - 1].split("/").pop()} · ${litPath.nodes.length - 1} hop${litPath.nodes.length !== 2 ? "s" : ""}${litPath.direction === "b-imports-a" ? " (reverse: B imports A)" : ""}`
+                : `◇ no static import path ${litPath.a.split("/").pop()} ↮ ${litPath.b.split("/").pop()}`}
+              <button className="icon-btn" onClick={() => setLitPath(null)} aria-label="Clear lit path">✕</button>
+            </span>
+          )}
           {loaded.kind === "repo" &&
             (coverage ? (
               <span className="pill cov-chip" title={coverage.unmatched ? coverage.unmatched + " artifact entries matched no ingested file" : "all entries matched"}>
@@ -473,6 +554,7 @@ export default function App() {
             selectedId={selectedId}
             matchedIds={matchedIds}
             radiusByZone={radiusByZone}
+            pathByZone={pathByZone}
             coverageByZone={coverageByZone}
             reducedMotion={reducedMotion}
             onSelect={setSelectedId}
@@ -531,6 +613,8 @@ export default function App() {
                 : null
             }
             onToggleRadius={selectedZone.file ? () => toggleRadius(selectedZone) : undefined}
+            pathArmed={pathFrom != null && selectedZone.file?.path === pathFrom}
+            onArmPath={loaded.kind === "repo" && selectedZone.file ? () => armPath(selectedZone) : undefined}
             coverageInfo={
               coverage && selectedZone.file ? coverage.byFile.get(selectedZone.file.path) ?? null : null
             }

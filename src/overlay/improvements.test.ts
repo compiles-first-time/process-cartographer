@@ -3,7 +3,7 @@
  * district intelligence (D1/D2) — all computed, all deterministic.
  */
 import { describe, it, expect } from "vitest";
-import { blastRadius, buildImportAdjacency, reachableFrom } from "../model/graph.ts";
+import { blastRadius, buildImportAdjacency, reachableFrom, shortestImportPath } from "../model/graph.ts";
 import { parseCoverage, matchPath } from "./coverage.ts";
 import { assembleRepoIR, type RepoRawFile } from "../repo/assembleRepoIR.ts";
 import type { FileSyntax } from "../repo/syntax/facts.ts";
@@ -50,6 +50,31 @@ describe("blast radius (A1)", () => {
     expect([...reachableFrom("x", adj)].sort()).toEqual(["y"]);
     const { fwd } = buildImportAdjacency(ir);
     expect(fwd.get("src/a.ts")!.length).toBe(2);
+  });
+});
+
+describe("path A→B lighting (A3)", () => {
+  it("finds the shortest path along import direction (e → a → b → d beats no 3-hop alternative)", () => {
+    const p = shortestImportPath(ir, "src/e.ts", "src/d.ts");
+    expect(p.direction).toBe("a-imports-b");
+    // Diamond: e→a→{b,c}→d — shortest is 4 nodes; BFS is deterministic, b comes first in edge order.
+    expect(p.nodes).toEqual(["src/e.ts", "src/a.ts", "src/b.ts", "src/d.ts"]);
+  });
+
+  it("falls back to the reverse direction and says so", () => {
+    const p = shortestImportPath(ir, "src/d.ts", "src/a.ts");
+    expect(p.direction).toBe("b-imports-a");
+    expect(p.nodes).toEqual(["src/a.ts", "src/b.ts", "src/d.ts"]);
+  });
+
+  it("returns an honest null when no static path exists (b and c are siblings)", () => {
+    const p = shortestImportPath(ir, "src/b.ts", "src/c.ts");
+    expect(p.nodes).toBeNull();
+    expect(p.direction).toBeNull();
+  });
+
+  it("A→A is the trivial single-node path", () => {
+    expect(shortestImportPath(ir, "src/a.ts", "src/a.ts").nodes).toEqual(["src/a.ts"]);
   });
 });
 
