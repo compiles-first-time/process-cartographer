@@ -3,6 +3,7 @@ import { ingestFromFolder } from "../ingest/fromFolder.ts";
 import { ingestFromNupkg } from "../ingest/fromNupkg.ts";
 import { ingestFromGithub } from "../ingest/fromGithub.ts";
 import type { IngestedProject, IngestSource } from "../ingest/types.ts";
+import type { RecentMeta } from "../store/session.ts";
 
 interface Props {
   onResult: (ingested: IngestedProject) => void;
@@ -13,11 +14,15 @@ interface Props {
   onProgress?: (message: string | null) => void;
   busy: boolean;
   compact?: boolean; // toolbar mode (after first load) vs hero mode (initial)
+  /** A6: cached sessions (hero mode only) — one-click re-map, no refetch/reparse. */
+  recent?: RecentMeta[];
+  onLoadRecent?: (key: string) => void;
+  onRemoveRecent?: (key: string) => void;
 }
 
 const SAMPLE_REPO = "https://github.com/UiPath/ReFrameWork";
 
-export default function IngestPanel({ onResult, onIRJson, onError, onBusy, onProgress, busy, compact }: Props) {
+export default function IngestPanel({ onResult, onIRJson, onError, onBusy, onProgress, busy, compact, recent, onLoadRecent, onRemoveRecent }: Props) {
   const [source, setSource] = useState<IngestSource>("github");
   const [url, setUrl] = useState("");
   const [token, setToken] = useState("");
@@ -174,6 +179,32 @@ export default function IngestPanel({ onResult, onIRJson, onError, onBusy, onPro
           </div>
         )}
       </div>
+
+      {/* A6: cached sessions — instant re-map from IndexedDB, validated on load. */}
+      {!compact && recent && recent.length > 0 && onLoadRecent && (
+        <div className="recent">
+          <h3 className="recent-h">Recent — cached in your browser</h3>
+          <ul className="recent-list">
+            {recent.map((r) => (
+              <li key={r.key} className="recent-item">
+                <button className="recent-load" disabled={busy} onClick={() => onLoadRecent(r.key)} title={`${r.sourceLabel} — re-map instantly (no refetch, no reparse; re-ingest for live expand)`}>
+                  <span className="recent-label">{r.label}</span>
+                  <span className="recent-meta">
+                    {r.filesTotal.toLocaleString()} files{r.locTotal > 0 ? ` · ${r.locTotal.toLocaleString()} lines` : ""}
+                    {r.includeDirs.length > 0 ? ` · +${r.includeDirs.length} expanded dir${r.includeDirs.length === 1 ? "" : "s"}` : ""} ·{" "}
+                    {new Date(r.savedAt).toLocaleDateString()}
+                  </span>
+                </button>
+                {onRemoveRecent && (
+                  <button className="icon-btn" disabled={busy} onClick={() => onRemoveRecent(r.key)} aria-label={`Forget ${r.label}`}>
+                    ✕
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

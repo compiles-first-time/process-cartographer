@@ -15,6 +15,7 @@ import { annotateZone, buildContext, DEFAULT_MODEL, DEEPEN_MODEL, PROMPT_VERSION
 import { annotationKey, cacheGet, cachePut } from "./annotate/cache.ts";
 import { blastRadius, shortestImportPath, type BlastRadius, type ImportPath } from "./model/graph.ts";
 import { parseCoverage, type CoverageOverlay } from "./overlay/coverage.ts";
+import { saveRecent, listRecent, loadRecent, removeRecent, type RecentMeta } from "./store/session.ts";
 import type { IngestedProject } from "./ingest/types.ts";
 
 type ViewMode = "3d" | "list";
@@ -49,6 +50,64 @@ export default function App() {
   // lights the shortest resolved-import path between them.
   const [pathFrom, setPathFrom] = useState<string | null>(null);
   const [litPath, setLitPath] = useState<ImportPath | null>(null);
+  // Session persistence (A6): recent ingests, restorable without refetch/reparse.
+  const [recent, setRecent] = useState<RecentMeta[]>([]);
+
+  useEffect(() => {
+    listRecent().then(setRecent).catch(() => setRecent([]));
+  }, [loaded]);
+
+  /** A6: persist a successful ingest (fire-and-forget — convenience, not correctness). */
+  function persistSession(next: Loaded, source: IngestedProject | null, dirs: string[]) {
+    if (!source?.allFiles) return;
+    const d = next.kind === "repo" ? next.ir.diagnostics : null;
+    void saveRecent(
+      {
+        key: source.sourceLabel,
+        label: next.kind === "repo" ? next.ir.repo.name : source.rootName,
+        sourceLabel: source.sourceLabel,
+        kind: next.kind,
+        savedAt: Date.now(),
+        includeDirs: dirs,
+        filesTotal: d?.filesTotal ?? source.allFiles.length,
+        locTotal: d?.locTotal ?? 0,
+      },
+      { key: source.sourceLabel, ir: next.ir, files: source.allFiles },
+    ).catch((err) => console.warn("session save failed (non-fatal):", err));
+  }
+
+  /** A6: one-click re-map from IndexedDB — boundary-validated like any IR-JSON load. */
+  async function restoreSession(key: string) {
+    setBusy(true);
+    try {
+      const data = await loadRecent(key);
+      if (!data) throw new Error("cached session not found — it may have been pruned");
+      const next = loadFromIRJson(JSON.stringify(data.ir));
+      const meta = recent.find((r) => r.key === key);
+      setIncludeDirs(meta?.includeDirs ?? []);
+      setAnnotations(new Map());
+      setRadius(null);
+      setCoverage(null);
+      setPathFrom(null);
+      setLitPath(null);
+      present(next, {
+        rootName: meta?.label ?? key,
+        xamlFiles: [],
+        allFiles: data.files,
+        sourceLabel: `${meta?.sourceLabel ?? key} (restored)`,
+        notes: [],
+        // No expandDir: restored sessions carry no fetch capability (disclosed on use).
+      });
+    } catch (err) {
+      setError(`Could not restore session: ${(err as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function forgetSession(key: string) {
+    void removeRecent(key).then(() => listRecent().then(setRecent));
+  }
 
   function rememberKey(remember: boolean) {
     setKeyRemembered(remember);
@@ -321,7 +380,9 @@ export default function App() {
     try {
       // Syntax tier env is code-split — wasm loads only for repo ingests.
       const { browserSyntaxEnv } = await import("./repo/syntax/browserEnv.ts");
-      present(await buildLoadedWithSyntax(next, browserSyntaxEnv, setProgress), next);
+      const built = await buildLoadedWithSyntax(next, browserSyntaxEnv, setProgress);
+      present(built, next);
+      persistSession(built, next, []);
     } catch (err) {
       setLoaded(null);
       setStack([]);
@@ -366,7 +427,9 @@ export default function App() {
       const nextInclude = [...includeDirs, dir];
       setIncludeDirs(nextInclude);
       const { browserSyntaxEnv } = await import("./repo/syntax/browserEnv.ts");
-      present(await buildLoadedWithSyntax(nextIngested, browserSyntaxEnv, setProgress, nextInclude), nextIngested, true);
+      const built = await buildLoadedWithSyntax(nextIngested, browserSyntaxEnv, setProgress, nextInclude);
+      present(built, nextIngested, true);
+      persistSession(built, nextIngested, nextInclude);
     } catch (err) {
       setError(`Could not include "${dir}": ${(err as Error).message}`);
     } finally {
@@ -428,7 +491,17 @@ export default function App() {
   if (!loaded || !current || !layout) {
     return (
       <div className="app hero-wrap">
-        <IngestPanel onResult={handleResult} onIRJson={handleIRJson} onError={setError} onBusy={setBusy} onProgress={setProgress} busy={busy} />
+        <IngestPanel
+          onResult={handleResult}
+          onIRJson={handleIRJson}
+          onError={setError}
+          onBusy={setBusy}
+          onProgress={setProgress}
+          busy={busy}
+          recent={recent}
+          onLoadRecent={restoreSession}
+          onRemoveRecent={forgetSession}
+        />
         {error && <div className="error-banner" role="alert">{error}</div>}
         {busy && (
           <div className="busy-overlay" role="status">

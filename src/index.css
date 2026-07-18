@@ -205,3 +205,14 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 .pipe-tip-kind { color: #7dd3fc; font-size: 11px; margin-bottom: 4px; }
 .pipe-tip-src { font-family: ui-monospace, monospace; font-size: 10.5px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; }
 .pipe-tip-hint { margin-top: 4px; font-size: 10.5px; color: #64748b; font-style: italic; }
+
+/* ── A6: recent sessions on the hero screen ── */
+.recent { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 12px; }
+.recent-h { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted, #94a3b8); margin: 0 0 8px; }
+.recent-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.recent-item { display: flex; align-items: center; gap: 8px; }
+.recent-load { flex: 1; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; text-align: left;
+  background: var(--panel-2, #101a2e); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; cursor: pointer; color: inherit; }
+.recent-load:hover { border-color: var(--accent); }
+.recent-label { font-weight: 600; }
+.recent-meta { font-size: 0.74rem; color: #94a3b8; white-space: nowrap; }
