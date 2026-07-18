@@ -16,6 +16,12 @@ export default function Legend({ layout }: { layout: CityLayout }) {
       <div className="legend-row legend-hint">
         <span>◎ ring = enterable · double-click to drill in</span>
       </div>
+      <div className="legend-row legend-hint">
+        <span>move: WASD/arrows or right-drag · click a building to fly to it</span>
+      </div>
+      <div className="legend-row legend-hint">
+        <span>solid pipe = import (computed) · dashed = doc/config reference</span>
+      </div>
     </div>
   );
 }

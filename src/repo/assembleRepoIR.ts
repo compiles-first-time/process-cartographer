@@ -13,7 +13,7 @@ import { validateRepoIR, type FileNode, type RepoIR, type RepoMeta, type Exclude
 import { detectLanguage } from "./detectLanguage.ts";
 import { classifyFile, excludedDirOf, looksBinary, hygieneAssumptions } from "./hygiene.ts";
 import type { FileSyntax } from "./syntax/facts.ts";
-import { resolveImportEdges, RESOLUTION_ASSUMPTIONS } from "./resolveImports.ts";
+import { resolveImportEdges, referenceEdges, RESOLUTION_ASSUMPTIONS } from "./resolveImports.ts";
 
 export const LOC_RULE =
   "lines = physical newline-delimited lines; linesNonEmpty = lines with at least one non-whitespace character; no comment/blank semantics applied";
@@ -160,8 +160,11 @@ export function assembleRepoIR(
       ? (files.filter((f) => f.parseStatus === "parse-clean").length / analyzed.length) * 100
       : null;
 
-  // Cross-file import edges from as-written facts (only when the syntax tier ran).
-  const edges = syntax ? resolveImportEdges(files) : [];
+  // Cross-file edges: language imports (when the syntax tier ran) + literal
+  // path references from docs/config (always computable from tier-0 text).
+  const textByPath = new Map<string, string>();
+  for (const f of surviving) if (f.text != null) textByPath.set(f.path, f.text);
+  const edges = [...(syntax ? resolveImportEdges(files) : []), ...referenceEdges(files, textByPath)];
   const edgesByResolution: Record<string, number> = {};
   for (const e of edges) edgesByResolution[e.resolution] = (edgesByResolution[e.resolution] ?? 0) + 1;
 
@@ -170,7 +173,7 @@ export function assembleRepoIR(
   if (includeDirs.length > 0) assumptions.push(`User-included directories (exclusion overridden): ${includeDirs.join(", ")}`);
 
   const ir: RepoIR = {
-    version: "0.1.0",
+    version: "0.2.0",
     irKind: "repo",
     repo,
     files,

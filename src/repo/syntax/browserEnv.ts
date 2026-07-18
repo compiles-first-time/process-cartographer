@@ -11,12 +11,14 @@ import runtimeWasmUrl from "web-tree-sitter/web-tree-sitter.wasm?url";
 import jsWasmUrl from "tree-sitter-javascript/tree-sitter-javascript.wasm?url";
 import tsWasmUrl from "tree-sitter-typescript/tree-sitter-typescript.wasm?url";
 import tsxWasmUrl from "tree-sitter-typescript/tree-sitter-tsx.wasm?url";
+import pyWasmUrl from "tree-sitter-python/tree-sitter-python.wasm?url";
 import type { SyntaxEnv, GrammarId } from "./analyze.ts";
 
 const GRAMMAR_URLS: Record<GrammarId, string> = {
   javascript: jsWasmUrl,
   typescript: tsWasmUrl,
   tsx: tsxWasmUrl,
+  python: pyWasmUrl,
 };
 
 export const browserSyntaxEnv: SyntaxEnv = {

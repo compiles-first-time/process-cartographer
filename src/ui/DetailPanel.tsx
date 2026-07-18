@@ -20,6 +20,8 @@ interface Props {
   onAnnotate?: () => void;
   apiKey?: string;
   onApiKey?: (key: string) => void;
+  keyRemembered?: boolean;
+  onRememberKey?: (remember: boolean) => void;
 }
 
 export default function DetailPanel({
@@ -34,6 +36,8 @@ export default function DetailPanel({
   onAnnotate,
   apiKey,
   onApiKey,
+  keyRemembered,
+  onRememberKey,
 }: Props) {
   const wf = zone.workflow;
   const file = zone.file;
@@ -46,8 +50,12 @@ export default function DetailPanel({
   const dynamicOut = repoEdgesOut.filter((e) => e.resolution === "unresolved-dynamic");
   const importedBy =
     file && repoIr
-      ? repoIr.edges.filter((e) => e.resolution === "resolved-static" && e.to === file.path)
+      ? repoIr.edges.filter((e) => e.kind === "import" && e.resolution === "resolved-static" && e.to === file.path)
       : [];
+  const referencedBy =
+    file && repoIr ? repoIr.edges.filter((e) => e.kind === "reference" && e.to === file.path) : [];
+  const referencesOut =
+    file && repoIr ? repoIr.edges.filter((e) => e.kind === "reference" && e.from === file.path) : [];
 
   return (
     <aside className="detail" aria-label={`Details for ${zone.label}`}>
@@ -158,6 +166,40 @@ export default function DetailPanel({
         </Section>
       )}
 
+      {file && referencedBy.length > 0 && (
+        <Section title={`Referenced in docs/config (${referencedBy.length}) — literal path mentions`}>
+          <ul className="links">
+            {referencedBy.map((e, i) => (
+              <li key={i}>
+                {onJumpFile ? (
+                  <button className="linkish" onClick={() => onJumpFile(e.from)}>{e.from}</button>
+                ) : (
+                  <span className="mono">{e.from}</span>
+                )}
+                <span className="muted"> :{e.evidence.startLine}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      {file && referencesOut.length > 0 && (
+        <Section title={`References (${referencesOut.length}) — paths mentioned in this file`}>
+          <ul className="links">
+            {referencesOut.map((e, i) => (
+              <li key={i}>
+                {onJumpFile ? (
+                  <button className="linkish" onClick={() => onJumpFile(e.to)}>{e.to}</button>
+                ) : (
+                  <span className="mono">{e.to}</span>
+                )}
+                <span className="muted"> :{e.evidence.startLine}</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
       {zone.children.length > 0 && (
         <Section title={`Contains (${zone.children.length})`}>
           <ul className="contains">
@@ -193,6 +235,12 @@ export default function DetailPanel({
               <p className="hint">Paste a key, then press Explain. Calls go directly from your browser to the Anthropic API.</p>
             </div>
           ) : null}
+          {apiKey && onRememberKey && (
+            <label className="toggle small">
+              <input type="checkbox" checked={!!keyRemembered} onChange={(e) => onRememberKey(e.target.checked)} />
+              Remember key on this device (localStorage — opt-in, ADR-0056 amendment)
+            </label>
+          )}
           {annotation?.status === "idle" && apiKey && (
             <button className="enter-btn ai-btn" onClick={onAnnotate}>
               Explain: what · why · how

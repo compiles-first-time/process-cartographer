@@ -17,7 +17,9 @@ const nodeEnv: SyntaxEnv = {
         ? "tree-sitter-javascript/tree-sitter-javascript.wasm"
         : g === "typescript"
           ? "tree-sitter-typescript/tree-sitter-typescript.wasm"
-          : "tree-sitter-typescript/tree-sitter-tsx.wasm";
+          : g === "python"
+            ? "tree-sitter-python/tree-sitter-python.wasm"
+            : "tree-sitter-typescript/tree-sitter-tsx.wasm";
     return path.resolve("node_modules", file);
   },
 };
@@ -57,7 +59,7 @@ describe("syntax tier — fact extraction (real WASM, pinned grammars)", () => {
     expect(grammarFor("a.ts")).toBe("typescript");
     expect(grammarFor("a.tsx")).toBe("tsx");
     expect(grammarFor("a.mjs")).toBe("javascript");
-    expect(grammarFor("a.py")).toBeNull();
+    expect(grammarFor("a.py")).toBe("python");
     expect(grammarFor("noext")).toBeNull();
   });
 
@@ -107,6 +109,58 @@ describe("syntax tier — fact extraction (real WASM, pinned grammars)", () => {
     const a = await analyzeFiles([{ path: "sample.ts", text: TS_SAMPLE }], nodeEnv);
     const b = await analyzeFiles([{ path: "sample.ts", text: TS_SAMPLE }], nodeEnv);
     expect(a.facts.get("sample.ts")).toEqual(b.facts.get("sample.ts"));
+  });
+});
+
+const PY_SAMPLE = `import os
+import importlib
+from pathlib import Path
+from .base import Agent
+from ..tools import search
+
+@register
+class MyAgent(Agent):
+    def run(self):
+        mod = __import__("plugins.loader")
+        dyn = importlib.import_module(config.plugin_name)
+        return search()
+
+    @staticmethod
+    def helper():
+        return 1
+
+def spawn_agent(name):
+    return MyAgent()
+`;
+
+describe("syntax tier — Python (real WASM, pinned grammar)", () => {
+  it("routes .py to the python grammar", () => {
+    expect(grammarFor("agents/base.py")).toBe("python");
+    expect(grammarFor("stubs/types.pyi")).toBe("python");
+  });
+
+  it("extracts classes, methods (through decorators), and functions", async () => {
+    const { facts, warnings } = await analyzeFiles([{ path: "agents/my_agent.py", text: PY_SAMPLE }], nodeEnv);
+    expect(warnings).toEqual([]);
+    const fx = facts.get("agents/my_agent.py")!;
+    expect(fx.parseClean).toBe(true);
+    const byName = new Map(fx.symbols.map((s) => [s.name, s]));
+    expect(byName.get("MyAgent")?.kind).toBe("class");
+    expect(byName.get("MyAgent.run")?.kind).toBe("method");
+    expect(byName.get("MyAgent.helper")?.kind).toBe("method"); // through @staticmethod
+    expect(byName.get("spawn_agent")?.kind).toBe("function");
+  });
+
+  it("records python imports AS WRITTEN — incl. relative dots and dynamic import_module", async () => {
+    const { facts } = await analyzeFiles([{ path: "agents/my_agent.py", text: PY_SAMPLE }], nodeEnv);
+    const fx = facts.get("agents/my_agent.py")!;
+    const specs = fx.imports.map((i) => `${i.dynamic ? "DYN:" : ""}${i.specifier}`);
+    expect(specs).toContain("os");
+    expect(specs).toContain("pathlib");
+    expect(specs).toContain(".base"); // relative, dots preserved
+    expect(specs).toContain("..tools");
+    expect(specs).toContain("plugins.loader"); // literal __import__ = a written fact
+    expect(specs.some((s) => s.startsWith("DYN:config.plugin_name"))).toBe(true); // non-literal → dynamic
   });
 });
 

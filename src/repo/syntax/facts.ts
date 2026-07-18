@@ -159,17 +159,101 @@ function collectImports(root: TSNode, out: ImportFact[]): void {
   out.sort((a, b) => a.line - b.line || a.specifier.localeCompare(b.specifier));
 }
 
-export function extractFacts(root: TSNode): FileSyntax {
+export type GrammarKind = "typescript" | "tsx" | "javascript" | "python";
+
+export function extractFacts(root: TSNode, grammar: GrammarKind = "typescript"): FileSyntax {
   const symbols: SymbolInfo[] = [];
   const imports: ImportFact[] = [];
-  collectSymbols(root, symbols);
-  collectImports(root, imports);
+  if (grammar === "python") {
+    collectPySymbols(root, symbols);
+    collectPyImports(root, imports);
+  } else {
+    collectSymbols(root, symbols);
+    collectImports(root, imports);
+  }
   symbols.sort((a, b) => a.startLine - b.startLine || a.name.localeCompare(b.name));
   return { symbols, imports, parseClean: !root.hasError };
 }
 
-/** Which grammar a file needs, by extension (null = not syntax-eligible in U1). */
-export function grammarFor(path: string): "typescript" | "tsx" | "javascript" | null {
+// ── Python walks (grammar: tree-sitter-python) ─────────────────────────────
+
+function pyStringLiteral(n: TSNode): string | null {
+  if (n.type !== "string") return null;
+  // Strip prefixes (r/b/u/f) and quote runs (''' """ ' ") from the raw text.
+  const text = n.text;
+  const m = new RegExp('^[rbufRBUF]{0,2}("""|\'\'\'|"|\')([\\s\\S]*?)\\1$').exec(text);
+  return m ? m[2] : null;
+}
+
+/** Module-level defs + class methods; decorated definitions unwrapped. */
+function collectPySymbols(root: TSNode, out: SymbolInfo[]): void {
+  for (let child of root.namedChildren) {
+    if (!child) continue;
+    if (child.type === "decorated_definition") {
+      const inner = child.namedChildren.find((c) => c && (c.type === "function_definition" || c.type === "class_definition"));
+      if (inner) child = inner;
+    }
+    if (child.type === "function_definition") {
+      const name = nameOf(child);
+      if (name) out.push({ name, kind: "function", startLine: line(child), endLine: endLine(child) });
+    } else if (child.type === "class_definition") {
+      const name = nameOf(child);
+      if (!name) continue;
+      out.push({ name, kind: "class", startLine: line(child), endLine: endLine(child) });
+      const body = child.childForFieldName("body");
+      if (!body) continue;
+      for (let m of body.namedChildren) {
+        if (!m) continue;
+        if (m.type === "decorated_definition") {
+          const inner = m.namedChildren.find((c) => c && c.type === "function_definition");
+          if (inner) m = inner;
+        }
+        if (m.type === "function_definition") {
+          const mName = nameOf(m);
+          if (mName) out.push({ name: `${name}.${mName}`, kind: "method", startLine: line(m), endLine: endLine(m) });
+        }
+      }
+    }
+  }
+}
+
+/** import / from-import statements + __import__ / importlib.import_module calls. */
+function collectPyImports(root: TSNode, out: ImportFact[]): void {
+  const stack: TSNode[] = [root];
+  while (stack.length) {
+    const node = stack.pop()!;
+    if (node.type === "import_statement") {
+      // `import a.b, x as y` — one fact per imported module.
+      for (const c of node.namedChildren) {
+        if (!c) continue;
+        if (c.type === "dotted_name") out.push({ specifier: c.text, line: line(node), dynamic: false });
+        else if (c.type === "aliased_import") {
+          const nm = c.childForFieldName("name");
+          if (nm) out.push({ specifier: nm.text, line: line(node), dynamic: false });
+        }
+      }
+    } else if (node.type === "import_from_statement") {
+      // `from X import ...` — the module X (possibly relative: ".base", "..") is the edge fact.
+      const mod = node.childForFieldName("module_name");
+      if (mod) out.push({ specifier: mod.text, line: line(node), dynamic: false });
+    } else if (node.type === "call") {
+      const fn = node.childForFieldName("function");
+      const fnText = fn?.text ?? "";
+      if (fnText === "__import__" || fnText === "importlib.import_module") {
+        const args = node.childForFieldName("arguments");
+        const first = args?.namedChildren.find((c) => c != null) ?? null;
+        const lit = first ? pyStringLiteral(first) : null;
+        if (lit != null) out.push({ specifier: lit, line: line(node), dynamic: false });
+        else out.push({ specifier: (first?.text ?? node.text).slice(0, MAX_SPECIFIER_LEN), line: line(node), dynamic: true });
+      }
+    }
+    for (const c of node.namedChildren) if (c) stack.push(c);
+  }
+  out.sort((a, b) => a.line - b.line || a.specifier.localeCompare(b.specifier));
+}
+
+/** Which grammar a file needs, by extension (null = not syntax-eligible). */
+export function grammarFor(path: string): GrammarKind | null {
   const m = /\.([a-z0-9]+)$/i.exec(path);
   if (!m) return null;
   switch (m[1].toLowerCase()) {
@@ -184,6 +268,9 @@ export function grammarFor(path: string): "typescript" | "tsx" | "javascript" | 
     case "mjs":
     case "cjs":
       return "javascript";
+    case "py":
+    case "pyi":
+      return "python";
     default:
       return null;
   }

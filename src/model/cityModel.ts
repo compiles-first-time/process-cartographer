@@ -39,6 +39,8 @@ export type BuildingCategory = string;
 export interface ZoneEdge {
   from: string; // child zone id
   to: string; // child zone id
+  /** "reference" = doc/config mention (dashed pipe); absent = computed import. */
+  kind?: "reference";
 }
 
 export interface Zone {

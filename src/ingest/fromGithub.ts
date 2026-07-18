@@ -14,8 +14,10 @@ import type { RepoRawFile } from "../repo/assembleRepoIR.ts";
 import { normalizeProject } from "./normalize.ts";
 import { classifyFile, excludedDirOf } from "../repo/hygiene.ts";
 
-/** Honest ceiling for per-file browser fetches (RISK-11): refuse loudly, never partially ingest. */
-export const MAX_FETCH_FILES = 2000;
+/** Honest ceiling for per-file browser fetches (RISK-11): refuse loudly, never
+ * partially ingest. ~10k files ≈ 2-3 min at the observed ~65 files/s — inside
+ * the user's stated 5-10 min tolerance; beyond it, zip upload is faster anyway. */
+export const MAX_FETCH_FILES = 10_000;
 
 export interface GithubRef {
   owner: string;

@@ -8,9 +8,9 @@
  * a Web Worker pool is a U2+ perf upgrade, not a correctness need.
  */
 import { Parser, Language } from "web-tree-sitter";
-import { extractFacts, grammarFor, type FileSyntax } from "./facts.ts";
+import { extractFacts, grammarFor, type FileSyntax, type GrammarKind } from "./facts.ts";
 
-export type GrammarId = "typescript" | "tsx" | "javascript";
+export type GrammarId = GrammarKind;
 
 export interface SyntaxEnv {
   /** Resolve the runtime wasm location (browser: vite url; Node: default). */
@@ -80,7 +80,7 @@ export async function analyzeFiles(
         continue;
       }
       try {
-        facts.set(f.path, extractFacts(tree.rootNode));
+        facts.set(f.path, extractFacts(tree.rootNode, f.grammar));
       } finally {
         tree.delete(); // memory discipline: never retain trees
       }

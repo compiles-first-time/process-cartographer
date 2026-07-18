@@ -13,9 +13,11 @@ export default function Pipe({ pipe, active, dimmed }: PipeProps) {
   // Arc the pipe above the taller endpoint so it reads as a transit line.
   const mid: [number, number, number] = [(fx + tx) / 2, Math.max(fy, ty) + 18, (fz + tz) / 2];
 
-  const color = active ? "#38bdf8" : "#64748b";
-  const opacity = dimmed && !active ? 0.06 : active ? 0.95 : 0.35;
-  const lineWidth = active ? 2.5 : 1.2;
+  const isRef = pipe.kind === "reference";
+  // Reference pipes (doc/config mentions): amber + dashed — visibly NOT an import.
+  const color = active ? (isRef ? "#fbbf24" : "#38bdf8") : isRef ? "#8a7340" : "#64748b";
+  const opacity = dimmed && !active ? 0.06 : active ? 0.95 : isRef ? 0.3 : 0.35;
+  const lineWidth = active ? 2.5 : isRef ? 1 : 1.2;
 
   return (
     <QuadraticBezierLine
@@ -26,6 +28,9 @@ export default function Pipe({ pipe, active, dimmed }: PipeProps) {
       lineWidth={lineWidth}
       transparent
       opacity={opacity}
+      dashed={isRef}
+      dashSize={6}
+      gapSize={4}
     />
   );
 }

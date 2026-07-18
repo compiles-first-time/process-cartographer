@@ -2,6 +2,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid } from "@react-three/drei";
 import Building from "./Building.tsx";
 import Pipe from "./Pipe.tsx";
+import CameraRig from "./CameraRig.tsx";
 import type { CityLayout } from "../layout/cityLayout.ts";
 
 interface CitySceneProps {
@@ -14,6 +15,7 @@ interface CitySceneProps {
 }
 
 export default function CityScene({ layout, selectedId, matchedIds, reducedMotion, onSelect, onEnter }: CitySceneProps) {
+  const selected = selectedId ? layout.buildings.find((b) => b.id === selectedId) ?? null : null;
   const span = Math.max(layout.bounds.width, layout.bounds.depth, 140);
   const dist = span * 0.85 + 150;
   const showAllLabels = layout.buildings.length <= 28;
@@ -71,6 +73,12 @@ export default function CityScene({ layout, selectedId, matchedIds, reducedMotio
           onEnter={onEnter}
         />
       ))}
+
+      <CameraRig
+        focus={selected ? [selected.x, 0, selected.z] : null}
+        focusKey={selected ? selected.id : null}
+        reducedMotion={reducedMotion}
+      />
 
       <OrbitControls
         makeDefault

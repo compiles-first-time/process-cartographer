@@ -29,6 +29,8 @@ export interface PlacedPipe {
   to: string;
   fromPos: [number, number, number];
   toPos: [number, number, number];
+  /** "reference" pipes render dashed (doc/config mention, not an import). */
+  kind?: "reference";
 }
 
 export interface CityLayout {
@@ -91,8 +93,9 @@ export function computeLayout(children: Zone[], edges: ZoneEdge[]): CityLayout {
       id: `${e.from}->${e.to}#${i}`,
       from: e.from,
       to: e.to,
-      fromPos: [a.x, a.height, a.z],
-      toPos: [b.x, b.height, b.z],
+      fromPos: [a.x, a.height, a.z] as [number, number, number],
+      toPos: [b.x, b.height, b.z] as [number, number, number],
+      kind: e.kind,
     };
   });
 

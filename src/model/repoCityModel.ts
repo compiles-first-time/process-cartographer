@@ -119,10 +119,13 @@ function fileZone(f: FileNode): Zone {
  * Because chain-collapsing only merges single-child dirs, the divergence dir is
  * always a real district (or the root).
  */
-function buildEdgeIndex(ir: RepoIR): Map<string, { from: string; to: string }[]> {
-  const byDistrict = new Map<string, { from: string; to: string }[]>();
+function buildEdgeIndex(ir: RepoIR): Map<string, { from: string; to: string; kind?: "reference" }[]> {
+  const byDistrict = new Map<string, { from: string; to: string; kind?: "reference" }[]>();
   for (const e of ir.edges) {
-    if (e.resolution !== "resolved-static") continue; // only computed pipes (RISK-09)
+    // Pipes: compiler/spec-resolved imports (solid) + doc references (dashed).
+    const isImportPipe = e.kind === "import" && e.resolution === "resolved-static";
+    const isRefPipe = e.kind === "reference" && e.resolution === "resolved-heuristic";
+    if (!isImportPipe && !isRefPipe) continue;
     if (e.from === e.to) continue;
     const a = e.from.split("/");
     const b = e.to.split("/");
@@ -130,7 +133,7 @@ function buildEdgeIndex(ir: RepoIR): Map<string, { from: string; to: string }[]>
     while (i < a.length - 1 && i < b.length - 1 && a[i] === b[i]) i++;
     const district = a.slice(0, i).join("/");
     const arr = byDistrict.get(district) ?? [];
-    arr.push({ from: e.from, to: e.to });
+    arr.push(isRefPipe ? { from: e.from, to: e.to, kind: "reference" } : { from: e.from, to: e.to });
     byDistrict.set(district, arr);
   }
   return byDistrict;
@@ -147,7 +150,7 @@ function childZoneIdFor(dirPath: string, p: string, childDirs: DirNode[]): strin
 
 function dirZone(
   dir: DirNode,
-  edgeIndex: Map<string, { from: string; to: string }[]>,
+  edgeIndex: Map<string, { from: string; to: string; kind?: "reference" }[]>,
   ghostsByParent: Map<string, Zone[]>,
 ): Zone {
   const t = totalsOf(dir);
@@ -163,10 +166,10 @@ function dirZone(
     const fromId = childZoneIdFor(dir.path, e.from, childDirNodes);
     const toId = childZoneIdFor(dir.path, e.to, childDirNodes);
     if (!fromId || !toId || fromId === toId) continue;
-    const key = `${fromId}->${toId}`;
+    const key = `${fromId}->${toId}:${e.kind ?? "import"}`;
     if (!seen.has(key)) {
       seen.add(key);
-      edges.push({ from: fromId, to: toId });
+      edges.push(e.kind ? { from: fromId, to: toId, kind: e.kind } : { from: fromId, to: toId });
     }
   }
 

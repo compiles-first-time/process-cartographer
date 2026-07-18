@@ -12,7 +12,7 @@
 import { z } from "zod";
 import { Resolution, Confidence, EvidenceSpan, ParseStatus } from "./sharedCore.ts";
 
-export const REPO_IR_VERSION = "0.1.0";
+export const REPO_IR_VERSION = "0.2.0";
 
 /** A declared symbol inside a file (U1 — tree-sitter tags-level facts). */
 export const SymbolInfo = z.object({
@@ -60,7 +60,8 @@ export const RepoEdge = z.object({
   from: z.string(), // FileNode.path
   /** Target: a FileNode.path when resolved into the set, else the raw specifier. */
   to: z.string(),
-  kind: z.literal("import"),
+  /** "import" = language import/require; "reference" = literal path mention in docs/config. */
+  kind: z.enum(["import", "reference"]),
   resolution: Resolution,
   confidence: Confidence,
   evidence: EvidenceSpan,

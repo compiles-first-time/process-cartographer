@@ -34,9 +34,17 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [view, setView] = useState<ViewMode>("3d");
   const [reducedMotion, setReducedMotion] = useState(false);
-  // AI annotation overlay (ADR-0056): interpretation, never structure.
-  const [apiKey, setApiKey] = useState(""); // memory-only, never persisted
+  // AI annotation overlay (ADR-0056): interpretation, never structure. Key is
+  // memory-only by default; persistence is OPT-IN (ADR-0056 amendment).
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("pc-anthropic-key") ?? "");
+  const [keyRemembered, setKeyRemembered] = useState(() => localStorage.getItem("pc-anthropic-key") != null);
   const [annotations, setAnnotations] = useState<Map<string, AnnotationState>>(new Map());
+
+  function rememberKey(remember: boolean) {
+    setKeyRemembered(remember);
+    if (remember && apiKey.trim()) localStorage.setItem("pc-anthropic-key", apiKey.trim());
+    else localStorage.removeItem("pc-anthropic-key");
+  }
 
   useEffect(() => {
     const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
@@ -309,6 +317,8 @@ export default function App() {
             onAnnotate={() => annotate(selectedZone)}
             apiKey={apiKey}
             onApiKey={setApiKey}
+            keyRemembered={keyRemembered}
+            onRememberKey={rememberKey}
           />
         )}
       </div>

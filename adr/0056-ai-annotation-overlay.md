@@ -26,6 +26,10 @@ Ship an **AI interpretation** section in the building detail panel (`src/annotat
 - Cost is user-controlled (their key, their clicks). No backend appears.
 - Future upgrades (citation-API quote extraction, symbol-table-validated linkification) tighten grounding further; loosening any boundary above requires a new ADR.
 
+## Amendment (2026-07-18-b) — opt-in key persistence
+
+User feedback (Nick): the operator "will already be hooked up to an LLM on the backend so it really should just be a button." Until a backend exists, the friction-reducer is OPT-IN persistence: a "Remember key on this device" checkbox stores the key in localStorage; default remains memory-only; unchecking removes it immediately. This amends boundary #4 (was: "never persisted") to "never persisted WITHOUT explicit opt-in". A configurable backend proxy (organization-supplied LLM endpoint) remains the intended end state and would restore the stricter default.
+
 ## Evidence basis
 
 - ADR-0055 evidence base: Venkatesh et al., EMSE 2025 (~20% hallucinated package refs — why the overlay may not assert structure); Sourcegraph's precise-vs-search tier labeling precedent (visibly distinct fidelity classes). `[peer-reviewed + vendor][H]`
