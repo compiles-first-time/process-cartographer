@@ -78,6 +78,20 @@ describe("path A→B lighting (A3)", () => {
   });
 });
 
+describe("pipe evidence (A5)", () => {
+  it("zone-level pipes carry their underlying file edges with evidence lines", () => {
+    const city = buildRepoCityModel(ir);
+    const src = city.children.find((z) => z.id === "dir:src")!;
+    const aToB = src.edges.find((e) => e.from === "file:src/a.ts" && e.to === "file:src/b.ts")!;
+    expect(aToB.total).toBe(1);
+    expect(aToB.sources).toEqual([{ from: "src/a.ts", to: "src/b.ts", line: 1 }]);
+    // The docs→src reference edge aggregates at the city level, tagged reference.
+    const ref = city.edges.find((e) => e.kind === "reference")!;
+    expect(ref.sources![0].from).toBe("docs/readme.md");
+    expect(ref.total).toBe(1);
+  });
+});
+
 describe("coverage overlay (E1)", () => {
   const irPaths = ir.files.map((f) => f.path);
 

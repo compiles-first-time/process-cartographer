@@ -15,7 +15,7 @@
 | A2 ✅ | **Global search** | Search the WHOLE city (all levels: dirs, files, symbols, import specifiers), results jump-to-zone (jumpToFile generalized) | Current search is per-level; users think repo-wide |
 | A3 ✅ | **Path A→B lighting** | Pick two buildings → shortest import path lights up | The UiPath RCA "light the failing path" idea, generalized. Shipped 2026-07-18: "◇ Path from here…" arms an anchor; next selection lights the shortest resolved-import corridor (endpoints emerald, hops amber, rest dimmed; districts light so the corridor reads from city level; reverse direction tried and disclosed; "no static path" stated honestly) |
 | A4 | **Minimap / overview toggle** | Flat whole-city aerial with viewport indicator; needs InstancedMesh at >1k buildings | Drill-down-as-LOD is efficient but loses global orientation |
-| A5 | **Edge tooltips** | Hover a pipe → who→whom, kind, evidence line, click-to-open panel | Pipes currently carry knowledge you can't interrogate |
+| A5 ✅ | **Edge tooltips** | Hover a pipe → who→whom, kind, evidence line, click-to-open panel | Pipes currently carry knowledge you can't interrogate. Shipped 2026-07-18: zone-level pipes now carry their underlying file edges (capped sample + true total, evidence lines); hover shows who→whom · kind/tier · `from:line → to` samples; click selects the source zone (its panel lists all edges); invisible picking tube for reliable raycast |
 | A6 | **Session persistence** | Recent repos + includeDirs choices + annotations in IndexedDB; one-click re-map | Re-ingesting on every visit wastes time and API budget |
 | A7 ✅ | **Keyboard completion** | Esc = up a level, Enter = enter selected, F = fly to selected | Complements the new WASD movement |
 

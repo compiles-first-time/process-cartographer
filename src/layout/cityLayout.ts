@@ -5,7 +5,7 @@
  * drill-down view is well-proportioned regardless of absolute weights.
  */
 import dagre from "@dagrejs/dagre";
-import type { Zone, ZoneEdge, ZoneKind, BuildingCategory } from "../model/cityModel.ts";
+import type { Zone, ZoneEdge, ZoneKind, BuildingCategory, EdgeSource } from "../model/cityModel.ts";
 
 export type { BuildingCategory } from "../model/cityModel.ts";
 export { CATEGORY_COLORS, CATEGORY_LABELS, colorFor, labelFor } from "../model/cityModel.ts";
@@ -31,6 +31,9 @@ export interface PlacedPipe {
   toPos: [number, number, number];
   /** "reference" pipes render dashed (doc/config mention, not an import). */
   kind?: "reference";
+  /** A5: underlying file edges (capped sample) + true total, for the hover tooltip. */
+  sources?: EdgeSource[];
+  total?: number;
 }
 
 export interface CityLayout {
@@ -96,6 +99,8 @@ export function computeLayout(children: Zone[], edges: ZoneEdge[]): CityLayout {
       fromPos: [a.x, a.height, a.z] as [number, number, number],
       toPos: [b.x, b.height, b.z] as [number, number, number],
       kind: e.kind,
+      sources: e.sources,
+      total: e.total,
     };
   });
 

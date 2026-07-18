@@ -119,8 +119,16 @@ function fileZone(f: FileNode): Zone {
  * Because chain-collapsing only merges single-child dirs, the divergence dir is
  * always a real district (or the root).
  */
-function buildEdgeIndex(ir: RepoIR): Map<string, { from: string; to: string; kind?: "reference" }[]> {
-  const byDistrict = new Map<string, { from: string; to: string; kind?: "reference" }[]>();
+interface IndexedEdge {
+  from: string;
+  to: string;
+  kind?: "reference";
+  /** Evidence start line in `from` (A5 tooltip provenance). */
+  line?: number;
+}
+
+function buildEdgeIndex(ir: RepoIR): Map<string, IndexedEdge[]> {
+  const byDistrict = new Map<string, IndexedEdge[]>();
   for (const e of ir.edges) {
     // Pipes: compiler/spec-resolved imports (solid) + doc references (dashed).
     const isImportPipe = e.kind === "import" && e.resolution === "resolved-static";
@@ -133,7 +141,8 @@ function buildEdgeIndex(ir: RepoIR): Map<string, { from: string; to: string; kin
     while (i < a.length - 1 && i < b.length - 1 && a[i] === b[i]) i++;
     const district = a.slice(0, i).join("/");
     const arr = byDistrict.get(district) ?? [];
-    arr.push(isRefPipe ? { from: e.from, to: e.to, kind: "reference" } : { from: e.from, to: e.to });
+    const line = e.evidence?.startLine;
+    arr.push(isRefPipe ? { from: e.from, to: e.to, kind: "reference", line } : { from: e.from, to: e.to, line });
     byDistrict.set(district, arr);
   }
   return byDistrict;
@@ -223,9 +232,12 @@ function computeIntel(
   };
 }
 
+/** Max underlying file edges carried per pipe (tooltip sample; total still counted). */
+const PIPE_SOURCE_CAP = 6;
+
 function dirZone(
   dir: DirNode,
-  edgeIndex: Map<string, { from: string; to: string; kind?: "reference" }[]>,
+  edgeIndex: Map<string, IndexedEdge[]>,
   ghostsByParent: Map<string, Zone[]>,
   resolvedEdges: { from: string; to: string }[],
 ): Zone {
@@ -235,17 +247,24 @@ function dirZone(
   const childFiles = [...dir.files].sort((a, b) => a.path.localeCompare(b.path)).map(fileZone);
   const ghosts = ghostsByParent.get(dir.path) ?? [];
 
-  // Pipes at THIS level: edges whose endpoints diverge here, mapped to child zones.
+  // Pipes at THIS level: edges whose endpoints diverge here, mapped to child
+  // zones — aggregated per pipe with their underlying file edges (A5 evidence).
   const edges: ZoneEdge[] = [];
-  const seen = new Set<string>();
+  const byPipe = new Map<string, ZoneEdge>();
   for (const e of edgeIndex.get(dir.path) ?? []) {
     const fromId = childZoneIdFor(dir.path, e.from, childDirNodes);
     const toId = childZoneIdFor(dir.path, e.to, childDirNodes);
     if (!fromId || !toId || fromId === toId) continue;
     const key = `${fromId}->${toId}:${e.kind ?? "import"}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      edges.push(e.kind ? { from: fromId, to: toId, kind: e.kind } : { from: fromId, to: toId });
+    let pipe = byPipe.get(key);
+    if (!pipe) {
+      pipe = { from: fromId, to: toId, ...(e.kind ? { kind: e.kind } : {}), sources: [], total: 0 };
+      byPipe.set(key, pipe);
+      edges.push(pipe);
+    }
+    pipe.total!++;
+    if (pipe.sources!.length < PIPE_SOURCE_CAP) {
+      pipe.sources!.push({ from: e.from, to: e.to, line: e.line });
     }
   }
 

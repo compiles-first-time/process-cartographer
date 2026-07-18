@@ -81,10 +81,10 @@ describe("resolveImportEdges → IR", () => {
   it("draws each pipe at the level where its endpoints diverge", () => {
     const city = buildRepoCityModel(ir);
     // src/app.ts → lib/other.ts diverges at ROOT: pipe between districts src and lib.
-    expect(city.edges).toContainEqual({ from: "dir:src", to: "dir:lib" });
+    expect(city.edges).toContainEqual(expect.objectContaining({ from: "dir:src", to: "dir:lib" }));
     // src/app.ts → src/util.ts diverges INSIDE src: pipe between the two file buildings.
     const src = city.children.find((z) => z.id === "dir:src")!;
-    expect(src.edges).toContainEqual({ from: "file:src/app.ts", to: "file:src/util.ts" });
+    expect(src.edges).toContainEqual(expect.objectContaining({ from: "file:src/app.ts", to: "file:src/util.ts" }));
     // No pipes for external/dynamic edges (RISK-09: only computed structure draws roads).
     const allEdgeIds = [...city.edges, ...src.edges].flatMap((e) => [e.from, e.to]);
     expect(allEdgeIds.every((id) => id.startsWith("dir:") || id.startsWith("file:"))).toBe(true);
@@ -162,7 +162,7 @@ describe("referenceEdges (literal path mentions in docs/config)", () => {
     const ir = assembleRepoIR({ name: "refs", source: "t" }, RAW_REF);
     const city = buildRepoCityModel(ir);
     // AGENTS.md (root file) -> tools/search.py diverges at root: file -> dir pipe, marked reference.
-    expect(city.edges).toContainEqual({ from: "file:AGENTS.md", to: "dir:tools", kind: "reference" });
+    expect(city.edges).toContainEqual(expect.objectContaining({ from: "file:AGENTS.md", to: "dir:tools", kind: "reference" }));
   });
 
   it("pure function honors the language allowlist", () => {

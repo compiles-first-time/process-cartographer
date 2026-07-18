@@ -39,6 +39,7 @@ function coverageTint(v: number): string {
 
 export default function CityScene({ layout, selectedId, matchedIds, radiusByZone, pathByZone, coverageByZone, reducedMotion, onSelect, onEnter }: CitySceneProps) {
   const selected = selectedId ? layout.buildings.find((b) => b.id === selectedId) ?? null : null;
+  const labelById = new Map(layout.buildings.map((b) => [b.id, b.zone.label]));
   const span = Math.max(layout.bounds.width, layout.bounds.depth, 140);
   const dist = span * 0.85 + 150;
   const showAllLabels = layout.buildings.length <= 28;
@@ -85,6 +86,9 @@ export default function CityScene({ layout, selectedId, matchedIds, radiusByZone
             (pathByZone != null && pathByZone.has(pipe.from) && pathByZone.has(pipe.to))
           }
           dimmed={matchedIds != null || (pathByZone != null && !(pathByZone.has(pipe.from) && pathByZone.has(pipe.to)))}
+          fromLabel={labelById.get(pipe.from)}
+          toLabel={labelById.get(pipe.to)}
+          onPick={onSelect}
         />
       ))}
 

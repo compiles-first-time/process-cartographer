@@ -36,11 +36,23 @@ export type ZoneKind =
  */
 export type BuildingCategory = string;
 
+/** One underlying file edge collapsed into a zone-level pipe (A5 evidence). */
+export interface EdgeSource {
+  from: string; // file path
+  to: string; // file path
+  /** Evidence line in `from` where the import/mention occurs (absent if the IR carried none). */
+  line?: number;
+}
+
 export interface ZoneEdge {
   from: string; // child zone id
   to: string; // child zone id
   /** "reference" = doc/config mention (dashed pipe); absent = computed import. */
   kind?: "reference";
+  /** Sample of the underlying file edges (repo mode; capped — see `total`). */
+  sources?: EdgeSource[];
+  /** Total underlying file edges collapsed into this pipe. */
+  total?: number;
 }
 
 export interface Zone {

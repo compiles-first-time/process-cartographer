@@ -197,3 +197,11 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }
+
+/* ── A5: pipe hover tooltip (who→whom, kind, evidence) ── */
+.pipe-tip { background: rgba(15,23,42,0.94); border: 1px solid #38bdf8; border-radius: 8px; padding: 8px 10px;
+  font-family: system-ui, sans-serif; font-size: 12px; color: #e2e8f0; white-space: nowrap; max-width: 480px; }
+.pipe-tip-head { font-weight: 700; margin-bottom: 2px; }
+.pipe-tip-kind { color: #7dd3fc; font-size: 11px; margin-bottom: 4px; }
+.pipe-tip-src { font-family: ui-monospace, monospace; font-size: 10.5px; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; }
+.pipe-tip-hint { margin-top: 4px; font-size: 10.5px; color: #64748b; font-style: italic; }
