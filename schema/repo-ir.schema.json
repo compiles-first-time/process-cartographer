@@ -1,0 +1,329 @@
+{
+  "$ref": "#/definitions/RepoIR",
+  "definitions": {
+    "RepoIR": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "const": "0.1.0"
+        },
+        "irKind": {
+          "type": "string",
+          "const": "repo"
+        },
+        "repo": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "source": {
+              "type": "string"
+            },
+            "ref": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "source"
+          ],
+          "additionalProperties": false
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "lines": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "linesNonEmpty": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "language": {
+                "type": "string"
+              },
+              "languageEvidence": {
+                "type": "string"
+              },
+              "parseStatus": {
+                "type": "string",
+                "enum": [
+                  "parse-clean",
+                  "parse-errors",
+                  "not-analyzed",
+                  "skipped"
+                ]
+              },
+              "skipReason": {
+                "type": "string"
+              },
+              "symbols": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "kind": {
+                      "type": "string"
+                    },
+                    "startLine": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "endLine": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "signature": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "kind",
+                    "startLine",
+                    "endLine"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "imports": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "specifier": {
+                      "type": "string"
+                    },
+                    "line": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0
+                    },
+                    "dynamic": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "specifier",
+                    "line",
+                    "dynamic"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "path",
+              "bytes",
+              "lines",
+              "linesNonEmpty",
+              "language",
+              "languageEvidence",
+              "parseStatus",
+              "symbols",
+              "imports"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string"
+              },
+              "to": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "const": "import"
+              },
+              "resolution": {
+                "type": "string",
+                "enum": [
+                  "resolved-static",
+                  "resolved-heuristic",
+                  "inferred",
+                  "unresolved-dynamic",
+                  "external"
+                ]
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "evidence": {
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string"
+                  },
+                  "startLine": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "endLine": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "required": [
+                  "path"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "from",
+              "to",
+              "kind",
+              "resolution",
+              "confidence",
+              "evidence"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "diagnostics": {
+          "type": "object",
+          "properties": {
+            "filesTotal": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "filesSkipped": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "excludedDirs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "dir": {
+                    "type": "string"
+                  },
+                  "rule": {
+                    "type": "string"
+                  },
+                  "entries": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "dir",
+                  "rule"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "bytesTotal": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "locTotal": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "locRule": {
+              "type": "string"
+            },
+            "languages": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "properties": {
+                  "files": {
+                    "type": "integer"
+                  },
+                  "loc": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "files",
+                  "loc"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "edgesByResolution": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer"
+              }
+            },
+            "parseCleanPct": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "assumptions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "filesTotal",
+            "filesSkipped",
+            "excludedDirs",
+            "bytesTotal",
+            "locTotal",
+            "locRule",
+            "languages",
+            "edgesByResolution",
+            "parseCleanPct",
+            "assumptions",
+            "warnings"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "version",
+        "irKind",
+        "repo",
+        "files",
+        "edges",
+        "diagnostics"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "process-cartographer RepoIR v0.1.0 (ADR-0055)"
+}

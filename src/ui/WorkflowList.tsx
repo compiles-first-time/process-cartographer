@@ -1,4 +1,4 @@
-import { CATEGORY_COLORS, CATEGORY_LABELS, type CityLayout } from "../layout/cityLayout.ts";
+import { colorFor, labelFor, type CityLayout } from "../layout/cityLayout.ts";
 
 interface Props {
   layout: CityLayout;
@@ -45,11 +45,11 @@ export default function ZoneList({ layout, matchedIds, selectedId, onSelect, onE
               }}
             >
               <td>
-                <span className="swatch sm" style={{ background: CATEGORY_COLORS[b.category] }} />
+                <span className="swatch sm" style={{ background: colorFor(b.category) }} />
                 {b.zone.label}
                 <div className="muted mono small">{b.zone.summary}</div>
               </td>
-              <td>{CATEGORY_LABELS[b.category]}</td>
+              <td>{labelFor(b.category)}</td>
               <td>{b.kind}</td>
               <td>{b.zone.children.length || "—"}</td>
               <td>

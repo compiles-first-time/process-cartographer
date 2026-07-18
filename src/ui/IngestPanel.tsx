@@ -6,6 +6,7 @@ import type { IngestedProject, IngestSource } from "../ingest/types.ts";
 
 interface Props {
   onResult: (ingested: IngestedProject) => void;
+  onIRJson: (jsonText: string) => void;
   onError: (message: string) => void;
   onBusy: (busy: boolean) => void;
   busy: boolean;
@@ -14,7 +15,7 @@ interface Props {
 
 const SAMPLE_REPO = "https://github.com/UiPath/ReFrameWork";
 
-export default function IngestPanel({ onResult, onError, onBusy, busy, compact }: Props) {
+export default function IngestPanel({ onResult, onIRJson, onError, onBusy, busy, compact }: Props) {
   const [source, setSource] = useState<IngestSource>("github");
   const [url, setUrl] = useState("");
   const [token, setToken] = useState("");
@@ -43,13 +44,14 @@ export default function IngestPanel({ onResult, onError, onBusy, busy, compact }
         <>
           <h1>process-cartographer</h1>
           <p className="tagline">
-            Map a UiPath REFramework automation as a 3D city — from a folder, a <code>.nupkg</code>, or a GitHub repo.
+            Map ANY code repository — or a UiPath automation — as an explorable 3D city. From a GitHub URL,
+            a <code>.zip</code>/<code>.nupkg</code>, or a local folder. All parsing runs in your browser.
           </p>
         </>
       )}
 
       <div className="ingest-tabs" role="tablist" aria-label="Source type">
-        {(["github", "nupkg", "folder"] as IngestSource[]).map((s) => (
+        {(["github", "nupkg", "folder", "ir-json"] as IngestSource[]).map((s) => (
           <button
             key={s}
             role="tab"
@@ -58,7 +60,7 @@ export default function IngestPanel({ onResult, onError, onBusy, busy, compact }
             onClick={() => setSource(s)}
             disabled={busy}
           >
-            {s === "github" ? "GitHub repo" : s === "nupkg" ? ".nupkg / .zip" : "Folder"}
+            {s === "github" ? "GitHub repo" : s === "nupkg" ? ".zip / .nupkg" : s === "folder" ? "Folder" : "IR JSON"}
           </button>
         ))}
       </div>
@@ -76,7 +78,7 @@ export default function IngestPanel({ onResult, onError, onBusy, busy, compact }
             />
             <input
               type="password"
-              placeholder="GitHub token (optional — for private repos / higher rate limit)"
+              placeholder="GitHub token (optional — private repos / higher rate limit; kept in memory only)"
               value={token}
               onChange={(e) => setToken(e.target.value)}
               disabled={busy}
@@ -107,13 +109,13 @@ export default function IngestPanel({ onResult, onError, onBusy, busy, compact }
               type="file"
               accept=".nupkg,.zip"
               disabled={busy}
-              aria-label="Choose a .nupkg or .zip file"
+              aria-label="Choose a .zip or .nupkg file"
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 if (f) run(() => ingestFromNupkg(f));
               }}
             />
-            <p className="hint">A UiPath <code>.nupkg</code> is a zip — unpacked entirely in your browser.</p>
+            <p className="hint">Any repo zip (GitHub: Code → Download ZIP) or UiPath <code>.nupkg</code> — unpacked entirely in your browser.</p>
           </div>
         )}
 
@@ -124,13 +126,37 @@ export default function IngestPanel({ onResult, onError, onBusy, busy, compact }
               type="file"
               multiple
               disabled={busy}
-              aria-label="Choose a UiPath project folder"
+              aria-label="Choose a project folder"
               onChange={(e) => {
                 const files = e.target.files;
                 if (files && files.length) run(() => ingestFromFolder(files));
               }}
             />
-            <p className="hint">Pick the folder that contains <code>project.json</code>. Files stay on your machine.</p>
+            <p className="hint">Pick any project folder. Files stay on your machine; vendored dirs (node_modules, .git…) are pruned and disclosed.</p>
+          </div>
+        )}
+
+        {source === "ir-json" && (
+          <div className="stack">
+            <input
+              type="file"
+              accept=".json"
+              disabled={busy}
+              aria-label="Choose an IR JSON file"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                onBusy(true);
+                try {
+                  onIRJson(await f.text());
+                } catch (err) {
+                  onError((err as Error).message);
+                } finally {
+                  onBusy(false);
+                }
+              }}
+            />
+            <p className="hint">A previously exported IR (schema-validated on load) — the interop seam for the companion CLI and CI artifacts.</p>
           </div>
         )}
       </div>

@@ -17,6 +17,10 @@ Scope frame: **v1 = static analysis** of a UiPath REFramework automation, render
 | FR-06 | Search / filter, render on demand | Developer | Types a query (system / file / variable / use-case) | Only matching subgraph renders; large automations never render everything at once | Core usability requirement, not a nice-to-have (RISK-03) |
 | FR-07 | Highlight a path | Developer | Selects a transaction path / requirement / exception | That path lights up end-to-end across buildings/floors | Enables RCA ("where did it break?") |
 | FR-08 | Requirement/exception coverage overlay | Reviewer | Loads a Requirements & Exceptions xlsx (+ optional PDD) | Each requirement/exception maps to a traceable path; shows covered vs uncovered = the confidence view | M3; xlsx schema is OQ-05 |
+| FR-09 | Ingest ANY code repository | Developer | GitHub URL / zip / folder / IR-JSON file | Tier-0 city for any repo in any language: dirs=districts, files=buildings (height=LOC, color=language); every skipped file visibly surfaced | [ADR-0055](../adr/0055-universal-repo-cartography-computed-not-generated.md) U0; UiPath projects auto-detected and routed to the existing pipeline |
+| FR-10 | Tier-stamped extraction | System | During repo parse | Every edge carries `resolution` enum + confidence + evidence span; every file carries parseStatus; structure is computed by parsers/resolvers only — never LLM/embedding-derived (schema-enforced) | ADR-0055 §A — the accuracy contract |
+| FR-11 | Extraction-honesty scorecard | Developer/Reviewer | Repo city rendered | Per-repo: % parse-clean, edges per tier, unresolved-dynamic count, skip list, assumptions in force | The soundiness disclosure made a product surface; extends DiagnosticsBar |
+| FR-12 | Symbol drill-down + resolved import pipes | Developer | Enters a file building / views level pipes | U1: declarations as building interiors (tree-sitter, per-file syntactic facts); U2: TS/JS import pipes resolved by the real TypeScript compiler resolver, dynamic imports rendered as unresolved-dynamic | Confidence = measured oracle agreement, published per release |
 
 ## Non-functional requirements
 

@@ -1,13 +1,15 @@
 /**
- * Ingest from a `.nupkg` (or plain `.zip`) — a NuGet package is just a zip.
- * Unzips in-browser with fflate, extracting only `.xaml` + `project.json`.
- * RISK-06: bounded to relevant entries; we never execute anything, only read.
+ * Ingest from a `.nupkg` / `.zip` — a NuGet package is just a zip.
+ * Universal (ADR-0055 U0): extracts ALL entries; hygiene decides which get
+ * text-decoded vs recorded as skipped. RISK-06: we only read, never execute.
  */
 import { unzipSync, strFromU8 } from "fflate";
 import type { IngestedProject, RawFile } from "./types.ts";
+import type { RepoRawFile } from "../repo/assembleRepoIR.ts";
 import { normalizeProject } from "./normalize.ts";
+import { classifyFile, excludedDirOf } from "../repo/hygiene.ts";
 
-/** NuGet package metadata we never want to treat as project files. */
+/** NuGet package metadata — plumbing for UiPath view; ordinary files for repo view. */
 function isPackagePlumbing(name: string): boolean {
   return (
     name.startsWith("_rels/") ||
@@ -18,7 +20,7 @@ function isPackagePlumbing(name: string): boolean {
   );
 }
 
-function isRelevant(name: string): boolean {
+function isUiPathRelevant(name: string): boolean {
   if (isPackagePlumbing(name)) return false;
   return /\.xaml$/i.test(name) || /(^|\/)project\.json$/i.test(name);
 }
@@ -27,30 +29,45 @@ export function ingestFromNupkgBytes(bytes: Uint8Array, fileName: string): Inges
   const notes: string[] = [];
   let entries: Record<string, Uint8Array>;
   try {
-    entries = unzipSync(bytes, { filter: (f) => isRelevant(f.name) });
+    entries = unzipSync(bytes);
   } catch (err) {
     return {
       rootName: fileName.replace(/\.(nupkg|zip)$/i, ""),
       xamlFiles: [],
-      projectJson: undefined,
-      sourceLabel: `nupkg: ${fileName}`,
+      allFiles: [],
+      sourceLabel: `archive: ${fileName}`,
       notes: [`Failed to unzip "${fileName}": ${(err as Error).message}`],
     };
   }
 
-  const raw: RawFile[] = Object.entries(entries).map(([name, data]) => ({
-    // NuGet zips percent-encode some path chars; decode for readable ids.
-    path: safeDecode(name),
-    text: strFromU8(data),
-  }));
+  const all: RepoRawFile[] = [];
+  const uipathRaw: RawFile[] = [];
 
-  const norm = normalizeProject(raw);
-  notes.push(...norm.notes);
+  for (const [name, data] of Object.entries(entries)) {
+    if (name.endsWith("/")) continue; // directory entry
+    const path = safeDecode(name);
+    if (excludedDirOf(path)) {
+      all.push({ path, bytes: data.length });
+      continue;
+    }
+    const verdict = classifyFile(path, data.length);
+    if (!verdict.included) {
+      all.push({ path, bytes: data.length, skipReason: verdict.reason });
+      continue;
+    }
+    const text = strFromU8(data);
+    all.push({ path, text, bytes: data.length });
+    if (isUiPathRelevant(path)) uipathRaw.push({ path, text });
+  }
+
+  const norm = normalizeProject(uipathRaw);
+  if (norm.xamlFiles.length > 0) notes.push(...norm.notes);
   return {
-    rootName: norm.rootName,
+    rootName: norm.rootName !== "uipath-project" ? norm.rootName : fileName.replace(/\.(nupkg|zip)$/i, ""),
     xamlFiles: norm.xamlFiles,
     projectJson: norm.projectJson,
-    sourceLabel: `nupkg: ${fileName}`,
+    allFiles: all,
+    sourceLabel: `archive: ${fileName}`,
     notes,
   };
 }

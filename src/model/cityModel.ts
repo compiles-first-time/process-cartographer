@@ -14,11 +14,27 @@
  * workflow buildings — the same recursive drill-down still applies.
  */
 import type { IRGraph, WorkflowNode, StateNode, SystemKind } from "../ir/schema.ts";
+import type { FileNode } from "../ir/repoSchema.ts";
 
-export type ZoneKind = "city" | "state" | "orchestrator" | "system" | "workflow" | "activity";
+export type ZoneKind =
+  | "city"
+  | "state"
+  | "orchestrator"
+  | "system"
+  | "workflow"
+  | "activity"
+  // Universal repo cartography (ADR-0055):
+  | "district" // a directory
+  | "file"
+  | "symbol";
 
-/** Color/geometry category. Systems come from SystemKind; states/workflows are structural. */
-export type BuildingCategory = SystemKind | "workflow" | "state";
+/**
+ * Color/geometry category. UiPath zones use SystemKind/workflow/state; repo
+ * zones use the detected language id (e.g. "typescript") or "district".
+ * Open string set — resolve colors/labels via colorFor()/labelFor(), which
+ * fall back deterministically for categories not in the base palette.
+ */
+export type BuildingCategory = string;
 
 export interface ZoneEdge {
   from: string; // child zone id
@@ -38,11 +54,13 @@ export interface Zone {
   summary: string;
   workflow?: WorkflowNode;
   state?: StateNode;
+  /** Present on repo file zones (universal cartography, ADR-0055). */
+  file?: FileNode;
 }
 
 // ── Palette (shared by scene, legend, panels) ──────────────────────────────
 
-export const CATEGORY_COLORS: Record<BuildingCategory, string> = {
+export const CATEGORY_COLORS: Record<string, string> = {
   state: "#818cf8", // indigo — lifecycle phases
   orchestrator: "#fb7185", // rose — the data hub
   web: "#38bdf8",
@@ -54,9 +72,36 @@ export const CATEGORY_COLORS: Record<BuildingCategory, string> = {
   login: "#f472b6",
   unknown: "#64748b",
   workflow: "#7dd3fc", // light sky — a workflow building
+  // Repo cartography (dark-theme-tuned language palette):
+  district: "#475569", // structural — a directory
+  typescript: "#4f9fe6",
+  javascript: "#e8d44d",
+  python: "#5aa9dc",
+  java: "#d98e48",
+  csharp: "#9b6bd3",
+  vbnet: "#7f9ccb",
+  go: "#5dc9e2",
+  rust: "#d6a27c",
+  ruby: "#e05a68",
+  php: "#8892bf",
+  html: "#e2704f",
+  css: "#8f6bd3",
+  scss: "#d1679e",
+  sql: "#e2a34f",
+  powershell: "#5aa0d8",
+  shell: "#7fbf7f",
+  xaml: "#38bdf8",
+  msbuild: "#8ea3b8",
+  sln: "#8ea3b8",
+  json: "#b8c26b",
+  yaml: "#c98181",
+  markdown: "#6b9bd1",
+  xml: "#9db38a",
+  text: "#94a3b8",
+  lockfile: "#6f7f93",
 };
 
-export const CATEGORY_LABELS: Record<BuildingCategory, string> = {
+export const CATEGORY_LABELS: Record<string, string> = {
   state: "State (lifecycle phase)",
   orchestrator: "Orchestrator (queue / asset)",
   web: "Web / UI app",
@@ -68,7 +113,42 @@ export const CATEGORY_LABELS: Record<BuildingCategory, string> = {
   login: "Credentials / login",
   unknown: "Unclassified target",
   workflow: "Workflow",
+  district: "Directory (district)",
+  typescript: "TypeScript",
+  javascript: "JavaScript",
+  csharp: "C#",
+  vbnet: "VB.NET",
+  msbuild: "MSBuild project",
+  sln: "Solution",
+  scss: "SCSS",
+  sql: "SQL",
+  html: "HTML",
+  css: "CSS",
+  json: "JSON",
+  yaml: "YAML",
+  xml: "XML",
+  xaml: "XAML",
+  powershell: "PowerShell",
+  markdown: "Markdown",
+  lockfile: "Lockfile",
 };
+
+/** Deterministic fallback hue for categories outside the base palette. */
+function hashHue(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h % 360;
+}
+
+/** Color for ANY category — base palette first, deterministic hsl fallback after. */
+export function colorFor(category: string): string {
+  return CATEGORY_COLORS[category] ?? `hsl(${hashHue(category)}, 45%, 62%)`;
+}
+
+/** Label for ANY category — base map first, capitalized id fallback after. */
+export function labelFor(category: string): string {
+  return CATEGORY_LABELS[category] ?? category.charAt(0).toUpperCase() + category.slice(1);
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 

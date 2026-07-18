@@ -8,7 +8,7 @@ import dagre from "@dagrejs/dagre";
 import type { Zone, ZoneEdge, ZoneKind, BuildingCategory } from "../model/cityModel.ts";
 
 export type { BuildingCategory } from "../model/cityModel.ts";
-export { CATEGORY_COLORS, CATEGORY_LABELS } from "../model/cityModel.ts";
+export { CATEGORY_COLORS, CATEGORY_LABELS, colorFor, labelFor } from "../model/cityModel.ts";
 
 export interface PlacedBuilding {
   id: string;

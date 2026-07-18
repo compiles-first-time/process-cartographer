@@ -1,4 +1,5 @@
 import type { SourceFile } from "../parser/assembleIR.ts";
+import type { RepoRawFile } from "../repo/assembleRepoIR.ts";
 
 /** A raw file pulled from any source, before project-rooting. */
 export interface RawFile {
@@ -7,7 +8,12 @@ export interface RawFile {
   text: string;
 }
 
-/** The normalized result of any ingest adapter — feeds parseProjectMeta + assembleIR. */
+/**
+ * The normalized result of any ingest adapter. Carries BOTH views:
+ * - the UiPath view (xamlFiles + projectJson) for the original pipeline, and
+ * - the universal view (allFiles, ADR-0055 U0) for repo cartography.
+ * buildLoaded() decides which pipeline renders it.
+ */
 export interface IngestedProject {
   /** Best-guess project name (folder name; overridden by project.json id downstream). */
   rootName: string;
@@ -15,10 +21,12 @@ export interface IngestedProject {
   xamlFiles: SourceFile[];
   /** Raw `project.json` text, if present. */
   projectJson?: string;
+  /** Universal file set (paths always present; text present iff fetched/passed hygiene). */
+  allFiles?: RepoRawFile[];
   /** Human label of where this came from (shown in the UI). */
   sourceLabel: string;
   /** Ingest-level notes/warnings (skipped files, truncated trees, missing project.json). */
   notes: string[];
 }
 
-export type IngestSource = "folder" | "nupkg" | "github";
+export type IngestSource = "folder" | "nupkg" | "github" | "ir-json";

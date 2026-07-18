@@ -1,27 +1,29 @@
 import type { IRGraph } from "../ir/schema.ts";
-import { CATEGORY_COLORS, CATEGORY_LABELS } from "../layout/cityLayout.ts";
+import { colorFor, labelFor } from "../layout/cityLayout.ts";
 import type { Zone } from "../model/cityModel.ts";
 
 interface Props {
   zone: Zone;
-  ir: IRGraph;
+  /** Present in UiPath mode only (invoke-edge listing); repo zones carry their own facts. */
+  ir?: IRGraph | null;
   onClose: () => void;
   onEnter?: () => void;
 }
 
 export default function DetailPanel({ zone, ir, onClose, onEnter }: Props) {
   const wf = zone.workflow;
-  const outgoing = wf ? ir.edges.filter((e) => e.from === wf.id) : [];
+  const file = zone.file;
+  const outgoing = wf && ir ? ir.edges.filter((e) => e.from === wf.id) : [];
 
   return (
     <aside className="detail" aria-label={`Details for ${zone.label}`}>
       <div className="detail-head">
-        <span className="swatch" style={{ background: CATEGORY_COLORS[zone.category] }} />
+        <span className="swatch" style={{ background: colorFor(zone.category) }} />
         <h2>{zone.label}</h2>
         <button className="icon-btn" onClick={onClose} aria-label="Close details">✕</button>
       </div>
       <div className="detail-sub">
-        <span className="tag">{CATEGORY_LABELS[zone.category]}</span>
+        <span className="tag">{labelFor(zone.category)}</span>
         <span className="tag ghosttag">{zone.kind}</span>
       </div>
       <p className="detail-summary">{zone.summary}</p>
@@ -32,16 +34,51 @@ export default function DetailPanel({ zone, ir, onClose, onEnter }: Props) {
         </button>
       )}
 
+      {/* ── Repo file facts (tier-0 provenance; ADR-0055) ── */}
+      {file && (
+        <Section title="File">
+          <table className="mini">
+            <tbody>
+              <tr><td className="muted">Path</td><td className="mono">{file.path}</td></tr>
+              <tr><td className="muted">Language</td><td>{labelFor(file.language)} <span className="muted">({file.languageEvidence})</span></td></tr>
+              <tr><td className="muted">Size</td><td>{file.bytes.toLocaleString()} bytes</td></tr>
+              {file.parseStatus !== "skipped" && (
+                <tr><td className="muted">Lines</td><td>{file.lines.toLocaleString()} ({file.linesNonEmpty.toLocaleString()} non-empty)</td></tr>
+              )}
+              <tr><td className="muted">Parse status</td><td>{file.parseStatus}{file.skipReason ? ` — ${file.skipReason}` : ""}</td></tr>
+            </tbody>
+          </table>
+          {file.imports.length > 0 && (
+            <>
+              <h4 className="mini-h">Imports as written ({file.imports.length})</h4>
+              <ul className="links">
+                {file.imports.map((imp, i) => (
+                  <li key={i}>
+                    <span className={imp.dynamic ? "dynamic" : "mono"}>
+                      {imp.dynamic ? "⚡ " : ""}{imp.specifier}
+                    </span>
+                    <span className="muted"> :{imp.line}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </Section>
+      )}
+
       {zone.children.length > 0 && (
         <Section title={`Contains (${zone.children.length})`}>
           <ul className="contains">
-            {zone.children.map((c) => (
+            {zone.children.slice(0, 60).map((c) => (
               <li key={c.id}>
-                <span className="swatch sm" style={{ background: CATEGORY_COLORS[c.category] }} />
+                <span className="swatch sm" style={{ background: colorFor(c.category) }} />
                 <span className="c-label">{c.label}</span>
                 <span className="c-kind">{c.kind}</span>
               </li>
             ))}
+            {zone.children.length > 60 && (
+              <li className="muted">… and {zone.children.length - 60} more</li>
+            )}
           </ul>
         </Section>
       )}
@@ -75,7 +112,7 @@ export default function DetailPanel({ zone, ir, onClose, onEnter }: Props) {
           <ul className="targets">
             {wf.targets.map((t, i) => (
               <li key={i}>
-                <span className="swatch sm" style={{ background: CATEGORY_COLORS[t.system] }} />
+                <span className="swatch sm" style={{ background: colorFor(t.system) }} />
                 <span className="mono">{t.activityType}</span>
                 {t.area && <span className="area">→ {t.area}</span>}
                 <span className="conf" title={t.evidence}>{Math.round(t.confidence * 100)}%</span>

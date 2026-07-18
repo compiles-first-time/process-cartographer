@@ -60,32 +60,42 @@ describe("GitHub ingest (mocked fetch)", () => {
     return { ok: status < 400, status, headers: { get: () => null }, text: async () => text } as unknown as Response;
   }
 
-  it("lists the tree, fetches only .xaml/project.json, and retries on 429", async () => {
+  it("fetches all hygiene-passing files, skips binaries via tree metadata, and retries on 429", async () => {
     let mainHits = 0;
     const mockFetch = (async (url: string) => {
       if (url.includes("/git/trees/")) {
         return jsonRes({
           truncated: false,
           tree: [
-            { path: "project.json", type: "blob" },
-            { path: "Main.xaml", type: "blob" },
-            { path: "README.md", type: "blob" }, // must be ignored
+            { path: "project.json", type: "blob", size: 40 },
+            { path: "Main.xaml", type: "blob", size: 100 },
+            { path: "README.md", type: "blob", size: 20 }, // universal adapter fetches this too
+            { path: "logo.png", type: "blob", size: 5000 }, // binary — must NOT be fetched
+            { path: "node_modules/x/i.js", type: "blob", size: 10 }, // excluded dir — must NOT be fetched
           ],
         });
       }
       if (url.endsWith("/main/project.json")) return textRes(`{"id":"Demo","main":"Main.xaml"}`);
+      if (url.endsWith("/main/README.md")) return textRes("# Demo\n");
       if (url.endsWith("/main/Main.xaml")) {
         mainHits++;
         if (mainHits === 1) return textRes("", 429); // first attempt rate-limited
         return textRes(`<Activity xmlns="http://schemas.microsoft.com/netfx/2009/xaml/activities"/>`);
       }
-      return textRes("nope", 404);
+      return textRes("nope", 404); // any other fetch (logo.png, node_modules) would fail the test
     }) as unknown as typeof fetch;
 
     const ingested = await ingestFromGithub("https://github.com/UiPath/ReFrameWork/tree/main", { fetchImpl: mockFetch });
     expect(ingested.xamlFiles.map((f) => f.id)).toEqual(["Main.xaml"]);
     expect(ingested.projectJson).toContain("Demo");
     expect(mainHits).toBe(2); // proves the 429 retry happened
+    // Universal view: all 5 paths present; binary + excluded carry no text.
+    const byPath = new Map(ingested.allFiles!.map((f) => [f.path, f]));
+    expect(byPath.size).toBe(5);
+    expect(byPath.get("README.md")!.text).toContain("# Demo");
+    expect(byPath.get("logo.png")!.text).toBeUndefined();
+    expect(byPath.get("logo.png")!.skipReason).toContain("binary");
+    expect(byPath.get("node_modules/x/i.js")!.text).toBeUndefined();
   });
 });
 

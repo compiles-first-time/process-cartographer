@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Html } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
-import { CATEGORY_COLORS, type PlacedBuilding } from "../layout/cityLayout.ts";
+import { colorFor, type PlacedBuilding } from "../layout/cityLayout.ts";
 
 interface BuildingProps {
   building: PlacedBuilding;
@@ -14,7 +14,7 @@ interface BuildingProps {
 
 export default function Building({ building, selected, dimmed, showLabel, onSelect, onEnter }: BuildingProps) {
   const [hovered, setHovered] = useState(false);
-  const color = CATEGORY_COLORS[building.category];
+  const color = colorFor(building.category);
   const { x, z, width, depth, height, kind, enterable } = building;
 
   const emissiveIntensity = selected ? 0.95 : hovered ? 0.55 : 0.15;

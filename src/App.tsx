@@ -2,20 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import CityScene from "./scene/CityScene.tsx";
 import IngestPanel from "./ui/IngestPanel.tsx";
 import DiagnosticsBar from "./ui/DiagnosticsBar.tsx";
+import RepoScorecard from "./ui/RepoScorecard.tsx";
 import DetailPanel from "./ui/DetailPanel.tsx";
 import Legend from "./ui/Legend.tsx";
 import ZoneList from "./ui/WorkflowList.tsx";
-import { buildIR } from "./ingest/buildIR.ts";
+import { buildLoadedWithSyntax, loadFromIRJson, type Loaded } from "./ingest/buildIR.ts";
 import { buildCityModel, type Zone } from "./model/cityModel.ts";
+import { buildRepoCityModel } from "./model/repoCityModel.ts";
 import { computeLayout } from "./layout/cityLayout.ts";
 import { matchZones } from "./ui/search.ts";
 import type { IngestedProject } from "./ingest/types.ts";
-import type { IRGraph } from "./ir/schema.ts";
 
 type ViewMode = "3d" | "list";
 
 export default function App() {
-  const [ir, setIr] = useState<IRGraph | null>(null);
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [ingested, setIngested] = useState<IngestedProject | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -43,19 +44,35 @@ export default function App() {
     [current, selectedId],
   );
 
-  function handleResult(next: IngestedProject) {
-    setIngested(next);
+  function present(next: Loaded, source: IngestedProject | null) {
+    setLoaded(next);
+    setIngested(source);
     setError(null);
     setSelectedId(null);
     setQuery("");
+    setStack([next.kind === "uipath" ? buildCityModel(next.ir) : buildRepoCityModel(next.ir)]);
+  }
+
+  async function handleResult(next: IngestedProject) {
+    setBusy(true);
     try {
-      const nextIr = buildIR(next);
-      setIr(nextIr);
-      setStack([buildCityModel(nextIr)]);
+      // Syntax tier env is code-split — wasm loads only for repo ingests.
+      const { browserSyntaxEnv } = await import("./repo/syntax/browserEnv.ts");
+      present(await buildLoadedWithSyntax(next, browserSyntaxEnv), next);
     } catch (err) {
-      setIr(null);
+      setLoaded(null);
       setStack([]);
       setError(`Failed to build the graph: ${(err as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleIRJson(jsonText: string) {
+    try {
+      present(loadFromIRJson(jsonText), null);
+    } catch (err) {
+      setError(`IR JSON rejected: ${(err as Error).message}`);
     }
   }
 
@@ -74,13 +91,13 @@ export default function App() {
     setQuery("");
   }
 
-  if (!ir || !current || !layout) {
+  if (!loaded || !current || !layout) {
     return (
       <div className="app hero-wrap">
-        <IngestPanel onResult={handleResult} onError={setError} onBusy={setBusy} busy={busy} />
+        <IngestPanel onResult={handleResult} onIRJson={handleIRJson} onError={setError} onBusy={setBusy} busy={busy} />
         {error && <div className="error-banner" role="alert">{error}</div>}
         <footer className="hero-foot">
-          Static v1 · states, the Orchestrator, and external systems as buildings you can enter. Runtime overlay is v2.
+          Structure is computed by real parsers — never generated. Anything unresolved is shown as unresolved (ADR-0055).
         </footer>
       </div>
     );
@@ -91,12 +108,12 @@ export default function App() {
   return (
     <div className="app">
       <header className="toolbar">
-        <IngestPanel compact onResult={handleResult} onError={setError} onBusy={setBusy} busy={busy} />
+        <IngestPanel compact onResult={handleResult} onIRJson={handleIRJson} onError={setError} onBusy={setBusy} busy={busy} />
         <div className="toolbar-controls">
           <input
             type="search"
             className="search"
-            placeholder="Search this level — states, systems, workflows, arguments…"
+            placeholder={loaded.kind === "repo" ? "Search this level — files, dirs, languages…" : "Search this level — states, systems, workflows…"}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             aria-label="Search the current level"
@@ -113,7 +130,11 @@ export default function App() {
         </div>
       </header>
 
-      <DiagnosticsBar ir={ir} ingested={ingested} />
+      {loaded.kind === "uipath" ? (
+        <DiagnosticsBar ir={loaded.ir} ingested={ingested} />
+      ) : (
+        <RepoScorecard ir={loaded.ir} />
+      )}
 
       <nav className="breadcrumb" aria-label="Drill-down path">
         {stack.map((z, i) => (
@@ -148,7 +169,7 @@ export default function App() {
         {selectedZone && (
           <DetailPanel
             zone={selectedZone}
-            ir={ir}
+            ir={loaded.kind === "uipath" ? loaded.ir : null}
             onClose={() => setSelectedId(null)}
             onEnter={selectedZone.children.length > 0 ? () => enter(selectedZone.id) : undefined}
           />

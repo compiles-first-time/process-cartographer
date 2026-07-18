@@ -29,6 +29,16 @@ export function matchZones(zones: Zone[], query: string): Set<string> | null {
       ...(z.workflow?.targets.flatMap((t) => [t.system, t.area ?? "", t.activityType]) ?? []),
       ...(z.workflow ? Object.keys(z.workflow.activityCounts) : []),
       ...(z.state ? [z.state.displayName ?? "", z.state.name, ...z.state.invokes] : []),
+      // Repo zones (ADR-0055): path, language, symbols, import specifiers
+      ...(z.file
+        ? [
+            z.file.path,
+            z.file.language,
+            z.file.parseStatus,
+            ...z.file.symbols.map((s) => s.name),
+            ...z.file.imports.map((i) => i.specifier),
+          ]
+        : []),
     ];
     if (hay.some((h) => h.toLowerCase().includes(q))) set.add(z.id);
   }

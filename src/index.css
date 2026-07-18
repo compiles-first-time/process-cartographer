@@ -78,6 +78,10 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 .src { font-size: 0.8rem; }
 .diag-toggle { background: transparent; color: var(--warn); border: 0; margin-top: 4px; }
 .diag-list { margin: 6px 0 2px; padding-left: 1.2rem; color: var(--muted); max-height: 140px; overflow: auto; }
+.diag-detail { max-height: 220px; overflow: auto; padding-bottom: 6px; }
+.ghost-pill { opacity: 0.65; font-style: italic; }
+.mini-h { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 8px 0 3px; }
+.pill .swatch.sm { vertical-align: middle; }
 
 /* ── Stage / scene ── */
 .stage { position: relative; flex: 1; min-height: 0; }
