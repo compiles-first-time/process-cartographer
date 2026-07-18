@@ -61,6 +61,7 @@ export function buildLoaded(ingested: IngestedProject): Loaded {
 export async function buildLoadedWithSyntax(
   ingested: IngestedProject,
   syntaxEnv: import("../repo/syntax/analyze.ts").SyntaxEnv,
+  onPhase?: (message: string | null) => void,
 ): Promise<Loaded> {
   if (isUiPathProject(ingested)) {
     return { kind: "uipath", ir: buildIR(ingested) };
@@ -73,7 +74,13 @@ export async function buildLoadedWithSyntax(
     const eligible = files.filter(
       (f): f is typeof f & { text: string } => f.text != null && grammarFor(f.path) != null && !excludedLike(f),
     );
-    const { facts, warnings } = await analyzeFiles(eligible.map((f) => ({ path: f.path, text: f.text })), syntaxEnv);
+    onPhase?.(eligible.length > 0 ? `parsing ${eligible.length} JS/TS files…` : null);
+    const { facts, warnings } = await analyzeFiles(
+      eligible.map((f) => ({ path: f.path, text: f.text })),
+      syntaxEnv,
+      (done, total) => onPhase?.(`parsing ${done}/${total} JS/TS files…`),
+    );
+    onPhase?.(null);
     return { kind: "repo", ir: assembleRepoIR(meta, files, facts, warnings) };
   } catch (err) {
     return {

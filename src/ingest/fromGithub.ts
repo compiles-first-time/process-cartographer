@@ -57,6 +57,8 @@ export function parseGithubUrl(input: string): GithubRef | null {
 interface FetchOpts {
   token?: string;
   fetchImpl?: typeof fetch;
+  /** Per-file fetch progress (done, total) — drives the loading overlay. */
+  onProgress?: (done: number, total: number) => void;
 }
 
 function ghHeaders(token?: string): HeadersInit {
@@ -165,6 +167,7 @@ export async function ingestFromGithub(url: string, opts: FetchOpts = {}): Promi
   //    rate-limits bursts with 429). Path segments must be URI-encoded — real
   //    repos contain names like "% of dogs.txt" (found live in expressjs/express).
   const encodePath = (p: string) => p.split("/").map(encodeURIComponent).join("/");
+  let fetchedCount = 0;
   const fetched: RepoRawFile[] = await mapLimit(toFetch, 4, async (n) => {
     const rawRes = await fetchWithRetry(doFetch, `https://raw.githubusercontent.com/${owner}/${repo}/${encodeURIComponent(branch)}/${encodePath(n.path)}`, undefined);
     if (!rawRes.ok) {
@@ -172,6 +175,7 @@ export async function ingestFromGithub(url: string, opts: FetchOpts = {}): Promi
       throw new Error(`Failed to fetch ${n.path} (HTTP ${rawRes.status}).`);
     }
     const text = await rawRes.text();
+    opts.onProgress?.(++fetchedCount, toFetch.length);
     return { path: n.relPath, text };
   });
   all.push(...fetched);

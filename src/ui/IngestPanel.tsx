@@ -9,13 +9,15 @@ interface Props {
   onIRJson: (jsonText: string) => void;
   onError: (message: string) => void;
   onBusy: (busy: boolean) => void;
+  /** Streaming progress line for the loading overlay (null = clear). */
+  onProgress?: (message: string | null) => void;
   busy: boolean;
   compact?: boolean; // toolbar mode (after first load) vs hero mode (initial)
 }
 
 const SAMPLE_REPO = "https://github.com/UiPath/ReFrameWork";
 
-export default function IngestPanel({ onResult, onIRJson, onError, onBusy, busy, compact }: Props) {
+export default function IngestPanel({ onResult, onIRJson, onError, onBusy, onProgress, busy, compact }: Props) {
   const [source, setSource] = useState<IngestSource>("github");
   const [url, setUrl] = useState("");
   const [token, setToken] = useState("");
@@ -28,6 +30,7 @@ export default function IngestPanel({ onResult, onIRJson, onError, onBusy, busy,
       onError((err as Error).message || "Ingest failed.");
     } finally {
       onBusy(false);
+      onProgress?.(null);
     }
   }
 
@@ -85,7 +88,18 @@ export default function IngestPanel({ onResult, onIRJson, onError, onBusy, busy,
               aria-label="GitHub token (optional)"
             />
             <div className="row">
-              <button className="primary" disabled={busy || !url.trim()} onClick={() => run(() => ingestFromGithub(url, { token: token || undefined }))}>
+              <button
+                className="primary"
+                disabled={busy || !url.trim()}
+                onClick={() =>
+                  run(() =>
+                    ingestFromGithub(url, {
+                      token: token || undefined,
+                      onProgress: (d, t2) => onProgress?.(`fetching ${d}/${t2} files…`),
+                    }),
+                  )
+                }
+              >
                 {busy ? "Loading…" : "Map repo"}
               </button>
               <button

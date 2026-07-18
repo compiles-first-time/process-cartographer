@@ -20,6 +20,7 @@ export default function App() {
   const [ingested, setIngested] = useState<IngestedProject | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [stack, setStack] = useState<Zone[]>([]); // drill path; stack[0] = city root
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -58,7 +59,7 @@ export default function App() {
     try {
       // Syntax tier env is code-split — wasm loads only for repo ingests.
       const { browserSyntaxEnv } = await import("./repo/syntax/browserEnv.ts");
-      present(await buildLoadedWithSyntax(next, browserSyntaxEnv), next);
+      present(await buildLoadedWithSyntax(next, browserSyntaxEnv, setProgress), next);
     } catch (err) {
       setLoaded(null);
       setStack([]);
@@ -94,8 +95,16 @@ export default function App() {
   if (!loaded || !current || !layout) {
     return (
       <div className="app hero-wrap">
-        <IngestPanel onResult={handleResult} onIRJson={handleIRJson} onError={setError} onBusy={setBusy} busy={busy} />
+        <IngestPanel onResult={handleResult} onIRJson={handleIRJson} onError={setError} onBusy={setBusy} onProgress={setProgress} busy={busy} />
         {error && <div className="error-banner" role="alert">{error}</div>}
+        {busy && (
+          <div className="busy-overlay" role="status">
+            <div className="busy-box">
+              <div className="spinner" aria-hidden="true" />
+              {progress ?? "Loading…"}
+            </div>
+          </div>
+        )}
         <footer className="hero-foot">
           Structure is computed by real parsers — never generated. Anything unresolved is shown as unresolved (ADR-0055).
         </footer>
@@ -108,7 +117,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="toolbar">
-        <IngestPanel compact onResult={handleResult} onIRJson={handleIRJson} onError={setError} onBusy={setBusy} busy={busy} />
+        <IngestPanel compact onResult={handleResult} onIRJson={handleIRJson} onError={setError} onBusy={setBusy} onProgress={setProgress} busy={busy} />
         <div className="toolbar-controls">
           <input
             type="search"
@@ -176,7 +185,14 @@ export default function App() {
         )}
       </div>
 
-      {busy && <div className="busy-overlay">Loading…</div>}
+      {busy && (
+        <div className="busy-overlay" role="status">
+          <div className="busy-box">
+            <div className="spinner" aria-hidden="true" />
+            {progress ?? "Loading…"}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
