@@ -216,3 +216,11 @@ button.ghost { background: transparent; color: var(--accent); border: 1px solid 
 .recent-load:hover { border-color: var(--accent); }
 .recent-label { font-weight: 600; }
 .recent-meta { font-size: 0.74rem; color: #94a3b8; white-space: nowrap; }
+
+/* ── A4: whole-city minimap ── */
+.minimap { position: absolute; right: 12px; bottom: 12px; z-index: 5; background: rgba(15,23,42,0.88);
+  border: 1px solid var(--border); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.minimap canvas { border-radius: 6px; background: #0d1526; cursor: pointer; }
+.minimap-toggle { align-self: flex-start; background: none; border: none; color: var(--muted, #94a3b8);
+  font-size: 0.72rem; cursor: pointer; padding: 0 2px; }
+.minimap-toggle:hover { color: var(--accent); }

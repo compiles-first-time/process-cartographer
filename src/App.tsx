@@ -6,6 +6,7 @@ import RepoScorecard from "./ui/RepoScorecard.tsx";
 import DetailPanel from "./ui/DetailPanel.tsx";
 import Legend from "./ui/Legend.tsx";
 import ZoneList from "./ui/WorkflowList.tsx";
+import Minimap from "./ui/Minimap.tsx";
 import { buildLoadedWithSyntax, loadFromIRJson, type Loaded } from "./ingest/buildIR.ts";
 import { buildCityModel, type Zone } from "./model/cityModel.ts";
 import { buildRepoCityModel } from "./model/repoCityModel.ts";
@@ -126,7 +127,10 @@ export default function App() {
   }, []);
 
   const current = stack[stack.length - 1] ?? null;
+  const root = stack[0] ?? null;
   const layout = useMemo(() => (current ? computeLayout(current.children, current.edges) : null), [current]);
+  // A4: the whole-city aerial layout (root level) — global orientation while drilled.
+  const rootLayout = useMemo(() => (root ? computeLayout(root.children, root.edges) : null), [root]);
   const matchedIds = useMemo(() => (current ? matchZones(current.children, query) : null), [current, query]);
   const selectedZone = useMemo(
     () => current?.children.find((c) => c.id === selectedId) ?? null,
@@ -658,6 +662,10 @@ export default function App() {
         )}
 
         {view === "3d" && <Legend layout={layout} />}
+
+        {view === "3d" && rootLayout && rootLayout.buildings.length > 1 && (
+          <Minimap rootLayout={rootLayout} currentTopId={stack.length > 1 ? stack[1].id : null} onJump={jumpToZone} />
+        )}
 
         {selectedZone && (
           <DetailPanel
