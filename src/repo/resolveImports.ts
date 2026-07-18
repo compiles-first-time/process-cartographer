@@ -27,6 +27,11 @@ export const RESOLUTION_ASSUMPTIONS = [
   "Reference edges (dashed) are literal repo-file paths appearing in docs/config text — a computed mention, not an execution relationship",
 ];
 
+/** Collision-proof key for compiler-resolution overrides (B1). */
+export function overrideKey(from: string, specifier: string): string {
+  return JSON.stringify([from, specifier]);
+}
+
 function dirname(p: string): string {
   const i = p.lastIndexOf("/");
   return i < 0 ? "" : p.slice(0, i);
@@ -57,7 +62,11 @@ export function resolveRelative(fromFile: string, specifier: string, fileSet: Se
   return null;
 }
 
-export function resolveImportEdges(files: FileNode[]): RepoEdge[] {
+export function resolveImportEdges(
+  files: FileNode[],
+  /** Compiler-grade answers (B1: ts.resolveModuleName) — they win when present. */
+  overrides?: Map<string, string>,
+): RepoEdge[] {
   const fileSet = new Set(files.map((f) => f.path));
   const edges: RepoEdge[] = [];
   const seen = new Set<string>();
@@ -83,6 +92,13 @@ export function resolveImportEdges(files: FileNode[]): RepoEdge[] {
           confidence: 1, // that it is dynamic is parser-proved
           evidence,
         });
+        continue;
+      }
+      // B1: the TypeScript compiler's own resolution wins when available
+      // (tsconfig paths/baseUrl aliases resolve compiler-grade).
+      const compilerTarget = overrides?.get(overrideKey(f.path, imp.specifier));
+      if (compilerTarget) {
+        push({ from: f.path, to: compilerTarget, kind: "import", resolution: "resolved-static", confidence: 1, evidence });
         continue;
       }
       if (isPython) {

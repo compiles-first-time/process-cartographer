@@ -83,8 +83,28 @@ export async function buildLoadedWithSyntax(
       syntaxEnv,
       (done, total) => onPhase?.(`parsing ${done}/${total} JS/TS files…`),
     );
+    // B1: compiler-grade TS/JS resolution (tsconfig paths/baseUrl) — dynamic
+    // import keeps typescript in its own chunk; failure degrades honestly.
+    let tsOverrides: Map<string, string> | undefined;
+    const extraAssumptions: string[] = [];
+    const hasTsJs = eligible.some((f) => /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/i.test(f.path));
+    if (hasTsJs) {
+      try {
+        onPhase?.("resolving imports (TypeScript compiler)…");
+        const { computeTsOverrides } = await import("../repo/syntax/tsResolver.ts");
+        const textByPath = new Map<string, string>();
+        for (const f of files) if (f.text != null) textByPath.set(f.path, f.text);
+        const importsByFile = new Map([...facts.entries()].map(([p, fx]) => [p, fx.imports]));
+        const res = computeTsOverrides(files.map((f) => f.path), textByPath, importsByFile);
+        tsOverrides = res.overrides;
+        extraAssumptions.push(...res.assumptions);
+        warnings.push(...res.warnings);
+      } catch (err) {
+        warnings.push(`TypeScript compiler resolution unavailable (${(err as Error).message}) — falling back to spec-based relative resolution.`);
+      }
+    }
     onPhase?.(null);
-    return { kind: "repo", ir: assembleRepoIR(meta, files, { syntax: facts, extraWarnings: warnings, includeDirs }) };
+    return { kind: "repo", ir: assembleRepoIR(meta, files, { syntax: facts, extraWarnings: warnings, includeDirs, tsOverrides, extraAssumptions }) };
   } catch (err) {
     return {
       kind: "repo",

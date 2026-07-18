@@ -48,6 +48,9 @@ export interface AssembleOptions {
   extraWarnings?: string[];
   /** User-granted "parse this directory" overrides (exclusion bypass). */
   includeDirs?: string[];
+  /** B1: compiler-resolution overrides from tsResolver (overrideKey → target). */
+  tsOverrides?: Map<string, string>;
+  extraAssumptions?: string[];
 }
 
 export function assembleRepoIR(
@@ -55,7 +58,7 @@ export function assembleRepoIR(
   rawFiles: RepoRawFile[],
   opts: AssembleOptions = {},
 ): RepoIR {
-  const { syntax, extraWarnings = [], includeDirs = [] } = opts;
+  const { syntax, extraWarnings = [], includeDirs = [], tsOverrides, extraAssumptions = [] } = opts;
   const warnings: string[] = [...extraWarnings];
 
   // 1. Prune excluded directories wholesale, summarizing per dir (rule + count).
@@ -164,11 +167,11 @@ export function assembleRepoIR(
   // path references from docs/config (always computable from tier-0 text).
   const textByPath = new Map<string, string>();
   for (const f of surviving) if (f.text != null) textByPath.set(f.path, f.text);
-  const edges = [...(syntax ? resolveImportEdges(files) : []), ...referenceEdges(files, textByPath)];
+  const edges = [...(syntax ? resolveImportEdges(files, tsOverrides) : []), ...referenceEdges(files, textByPath)];
   const edgesByResolution: Record<string, number> = {};
   for (const e of edges) edgesByResolution[e.resolution] = (edgesByResolution[e.resolution] ?? 0) + 1;
 
-  const assumptions = [...hygieneAssumptions()];
+  const assumptions = [...hygieneAssumptions(), ...extraAssumptions];
   if (syntax) assumptions.push(...RESOLUTION_ASSUMPTIONS);
   if (includeDirs.length > 0) assumptions.push(`User-included directories (exclusion overridden): ${includeDirs.join(", ")}`);
 

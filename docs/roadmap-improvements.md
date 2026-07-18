@@ -23,7 +23,7 @@
 
 | # | Improvement | Tier effect |
 |---|---|---|
-| B1 | **Real TypeScript resolver** (`@typescript/vfs` + `ts.resolveModuleName`, code-split like the wasm) | tsconfig `paths` aliases + workspace links resolve → the "@/lib/x shows external" gap closes; JS/TS becomes compiler-grade |
+| B1 ✅ | **Real TypeScript resolver** (`@typescript/vfs` + `ts.resolveModuleName`, code-split like the wasm) | tsconfig `paths` aliases + workspace links resolve → the "@/lib/x shows external" gap closes; JS/TS becomes compiler-grade |
 | B2 | **Oracle harness in CI** (dependency-cruiser + madge + tsc 2-of-3 for TS; Grimp for Python; pinned-SHA corpus) | "Accurate" becomes a *measured, published* number per release — the 0055 promise operationalized |
 | B3 | **Export facts + named-import linking** | Record each file's exported symbols; link imported names to the target's exports → symbol-level pipes on drill-in ("which function uses which") — still purely syntactic |
 | B4 | **Java tier** (imports are fully static — cheap win), then **C# `.sln`/`.csproj`** project districts (fast-xml-parser reuse) + namespace-index heuristic edges | Two more major ecosystems on the same ladder |

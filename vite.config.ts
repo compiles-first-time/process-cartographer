@@ -11,7 +11,7 @@ export default defineConfig({
     // first repo ingest and force-reloads the page — discarding the in-flight
     // ingest ("I clicked and nothing happened", 2026-07-18). Dev-only failure;
     // see lessons-learned/2026-07-18-vite-dynamic-dep-discovery-reload.md.
-    include: ["web-tree-sitter"],
+    include: ["web-tree-sitter", "typescript"],
   },
   test: {
     globals: true,
