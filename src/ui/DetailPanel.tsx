@@ -22,6 +22,11 @@ interface Props {
   onApiKey?: (key: string) => void;
   keyRemembered?: boolean;
   onRememberKey?: (remember: boolean) => void;
+  onAnnotateDeep?: () => void;
+  radiusActive?: boolean;
+  radiusCounts?: { upstream: number; downstream: number } | null;
+  onToggleRadius?: () => void;
+  coverageInfo?: { covered: number; total: number } | null;
 }
 
 export default function DetailPanel({
@@ -38,6 +43,11 @@ export default function DetailPanel({
   onApiKey,
   keyRemembered,
   onRememberKey,
+  onAnnotateDeep,
+  radiusActive,
+  radiusCounts,
+  onToggleRadius,
+  coverageInfo,
 }: Props) {
   const wf = zone.workflow;
   const file = zone.file;
@@ -105,8 +115,32 @@ export default function DetailPanel({
                 <tr><td className="muted">Lines</td><td>{file.lines.toLocaleString()} ({file.linesNonEmpty.toLocaleString()} non-empty)</td></tr>
               )}
               <tr><td className="muted">Parse status</td><td>{file.parseStatus}{file.skipReason ? ` — ${file.skipReason}` : ""}</td></tr>
+              {coverageInfo && (
+                <tr>
+                  <td className="muted">Coverage</td>
+                  <td>
+                    {coverageInfo.covered}/{coverageInfo.total} statements ({Math.round((coverageInfo.covered / Math.max(coverageInfo.total, 1)) * 100)}%) — observed execution
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+        </Section>
+      )}
+
+      {/* ── Blast radius (A1): transitive dependency closure — computed ── */}
+      {file && onToggleRadius && (
+        <Section title="Blast radius — computed">
+          <button className={radiusActive ? "enter-btn radius-on" : "enter-btn ai-btn"} onClick={onToggleRadius}>
+            {radiusActive ? "Hide blast radius" : "Show blast radius"}
+          </button>
+          {radiusActive && radiusCounts && (
+            <p className="muted small">
+              <span className="rad-up">■</span> {radiusCounts.upstream} upstream (depend on this) ·{" "}
+              <span className="rad-down">■</span> {radiusCounts.downstream} downstream (this depends on) ·
+              others dimmed. Solid-import edges only.
+            </p>
+          )}
         </Section>
       )}
 
@@ -217,6 +251,56 @@ export default function DetailPanel({
         </Section>
       )}
 
+      {/* ── District intelligence (D1/D2) — computed, never inferred ── */}
+      {zone.district && (
+        <Section title="District intelligence — computed">
+          <table className="mini">
+            <tbody>
+              {zone.district.dominantLanguage && (
+                <tr>
+                  <td className="muted">Dominant language</td>
+                  <td>
+                    <span className="swatch sm" style={{ background: colorFor(zone.district.dominantLanguage) }} />{" "}
+                    {labelFor(zone.district.dominantLanguage)}
+                  </td>
+                </tr>
+              )}
+              <tr>
+                <td className="muted">Edges</td>
+                <td>
+                  {zone.district.internalEdges} internal · {zone.district.fanOut} out · {zone.district.fanIn} in
+                  {zone.district.cohesionPct != null ? ` · cohesion ${zone.district.cohesionPct}%` : ""}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          {zone.district.roles.length > 0 && (
+            <ul className="chips">
+              {zone.district.roles.map((r) => (
+                <li key={r.role} className="chip" title={r.evidence}>
+                  {r.role}
+                </li>
+              ))}
+            </ul>
+          )}
+          {zone.district.entryPoints.length > 0 && (
+            <p className="muted small">
+              Entry points:{" "}
+              {zone.district.entryPoints.map((p, i) => (
+                <span key={p}>
+                  {i > 0 && " · "}
+                  {onJumpFile ? (
+                    <button className="linkish" onClick={() => onJumpFile(p)}>{p.slice(p.lastIndexOf("/") + 1)}</button>
+                  ) : (
+                    <span className="mono">{p}</span>
+                  )}
+                </span>
+              ))}
+            </p>
+          )}
+        </Section>
+      )}
+
       {/* ── AI interpretation overlay (ADR-0056) — repo zones only ── */}
       {repoIr && !zone.excludedDir && (zone.file || zone.kind === "district" || zone.kind === "city") && (
         <Section title="AI interpretation">
@@ -257,6 +341,11 @@ export default function DetailPanel({
               <h4 className="mini-h">How</h4>
               <p>{annotation.result.how}</p>
               <p className="muted small">model: {annotation.result.model} · line refs point into the file's source</p>
+              {annotation.result.model.includes("haiku") && onAnnotateDeep && (
+                <button className="enter-btn ai-btn" onClick={onAnnotateDeep}>
+                  Deepen with Sonnet
+                </button>
+              )}
             </div>
           )}
         </Section>

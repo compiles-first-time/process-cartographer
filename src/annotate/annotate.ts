@@ -23,7 +23,11 @@ export interface Annotation {
   model: string;
 }
 
-const MODEL = "claude-sonnet-5"; // current per spec/policy/model-ids.json
+// Model tiering (roadmap C3): Haiku by default, Sonnet on explicit "deepen".
+// Both current per spec/policy/model-ids.json.
+export const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
+export const DEEPEN_MODEL = "claude-sonnet-5";
+export const PROMPT_VERSION = "annotate-v2"; // bump to invalidate the cache
 const MAX_SOURCE_CHARS = 48_000;
 const MAX_DISTRICT_FILES = 60;
 
@@ -83,17 +87,24 @@ function districtContext(zone: Zone, ir: RepoIR, allFiles: RepoRawFile[]): strin
   ].join("\n\n");
 }
 
+/** The exact grounding context sent to the model — also the cache-key input (C1). */
+export function buildContext(zone: Zone, ir: RepoIR, allFiles: RepoRawFile[]): string {
+  return zone.file ? fileContext(zone, ir, allFiles) : districtContext(zone, ir, allFiles);
+}
+
 export async function annotateZone(args: {
   zone: Zone;
   ir: RepoIR;
   allFiles: RepoRawFile[];
   apiKey: string;
+  model?: string;
   fetchImpl?: typeof fetch;
 }): Promise<Annotation> {
   const { zone, ir, allFiles, apiKey } = args;
+  const model = args.model ?? DEFAULT_MODEL;
   const doFetch = args.fetchImpl ?? fetch;
 
-  const context = zone.file ? fileContext(zone, ir, allFiles) : districtContext(zone, ir, allFiles);
+  const context = buildContext(zone, ir, allFiles);
 
   const res = await doFetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -104,9 +115,11 @@ export async function annotateZone(args: {
       "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       max_tokens: 1200,
-      system: SYSTEM,
+      // Prompt caching (roadmap C2): the invariant system prompt is cached
+      // across calls — ~90% input-token discount on cache hits.
+      system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: `Repo: ${ir.repo.name}\n\n${context}` }],
     }),
   });
@@ -125,7 +138,7 @@ export async function annotateZone(args: {
     what: String(parsed.what ?? "").trim() || "not determinable from the provided source",
     why: String(parsed.why ?? "").trim() || "not determinable from the provided source",
     how: String(parsed.how ?? "").trim() || "not determinable from the provided source",
-    model: MODEL,
+    model,
   };
 }
 

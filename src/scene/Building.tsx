@@ -7,14 +7,16 @@ interface BuildingProps {
   building: PlacedBuilding;
   selected: boolean;
   dimmed: boolean;
+  /** Override color (blast-radius role / coverage tint) — overlays, not category. */
+  tint?: string;
   showLabel: boolean;
   onSelect: (id: string) => void;
   onEnter: (id: string) => void;
 }
 
-export default function Building({ building, selected, dimmed, showLabel, onSelect, onEnter }: BuildingProps) {
+export default function Building({ building, selected, dimmed, tint, showLabel, onSelect, onEnter }: BuildingProps) {
   const [hovered, setHovered] = useState(false);
-  const color = colorFor(building.category);
+  const color = tint ?? colorFor(building.category);
   const { x, z, width, depth, height, kind, enterable } = building;
 
   const emissiveIntensity = selected ? 0.95 : hovered ? 0.55 : 0.15;

@@ -11,7 +11,7 @@
  *    "parse this directory" — the on-demand inclusion flow), never invisible.
  */
 import type { RepoIR, FileNode } from "../ir/repoSchema.ts";
-import type { Zone, ZoneEdge } from "./cityModel.ts";
+import type { Zone, ZoneEdge, DistrictIntel } from "./cityModel.ts";
 
 interface DirNode {
   name: string; // display segment ("src" — or "src/lib" after collapsing)
@@ -148,14 +148,90 @@ function childZoneIdFor(dirPath: string, p: string, childDirs: DirNode[]): strin
   return null;
 }
 
+const ENTRY_POINT_RE = /^(index|main|app|cli|server).[a-z]+$|^__init__.py$|^__main__.py$/i;
+const TEST_FILE_RE = /(.test.|.spec.|^test_|_test.)/i;
+const CONFIG_LANGS = new Set(["json", "yaml", "toml", "ini", "config", "dotenv"]);
+
+/** LLM-free computed district facts (roadmap D1/D2) — every claim has evidence. */
+function computeIntel(
+  dir: DirNode,
+  allEdges: { from: string; to: string }[],
+): DistrictIntel {
+  // Dominant language by LOC across the subtree.
+  const langLoc = new Map<string, number>();
+  const subtreeFiles: FileNode[] = [];
+  (function collect(d: DirNode) {
+    for (const f of d.files) {
+      subtreeFiles.push(f);
+      if (f.parseStatus !== "skipped") langLoc.set(f.language, (langLoc.get(f.language) ?? 0) + f.lines);
+    }
+    for (const c of d.dirs.values()) collect(c);
+  })(dir);
+  let dominantLanguage: string | null = null;
+  let best = 0;
+  for (const [lang, loc] of langLoc) {
+    if (loc > best && lang !== "unknown") {
+      best = loc;
+      dominantLanguage = lang;
+    }
+  }
+
+  const entryPoints = dir.files
+    .filter((f) => ENTRY_POINT_RE.test(f.path.slice(f.path.lastIndexOf("/") + 1)))
+    .map((f) => f.path);
+
+  const roles: { role: string; evidence: string }[] = [];
+  const name = (dir.name.split("/").pop() ?? "").toLowerCase();
+  if (["test", "tests", "__tests__", "spec", "specs"].includes(name)) {
+    roles.push({ role: "tests", evidence: `directory name "${name}"` });
+  } else {
+    const testFiles = subtreeFiles.filter((f) => TEST_FILE_RE.test(f.path.slice(f.path.lastIndexOf("/") + 1))).length;
+    if (subtreeFiles.length >= 3 && testFiles / subtreeFiles.length > 0.5) {
+      roles.push({ role: "tests", evidence: `${testFiles}/${subtreeFiles.length} files match test naming` });
+    }
+  }
+  if (dir.path.startsWith(".github/workflows") || dir.path === ".github") roles.push({ role: "CI", evidence: dir.path });
+  if (["docs", "doc"].includes(name)) roles.push({ role: "docs", evidence: `directory name "${name}"` });
+  const cfgFiles = subtreeFiles.filter((f) => CONFIG_LANGS.has(f.language)).length;
+  if (subtreeFiles.length >= 3 && cfgFiles / subtreeFiles.length > 0.6) {
+    roles.push({ role: "config", evidence: `${cfgFiles}/${subtreeFiles.length} files are config formats` });
+  }
+  if (entryPoints.length > 0) roles.push({ role: "entry point", evidence: entryPoints.map((p) => p.slice(p.lastIndexOf("/") + 1)).join(", ") });
+
+  // Cohesion over resolved-import edges.
+  const prefix = dir.path ? dir.path + "/" : "";
+  const inside = (p: string) => (prefix ? p.startsWith(prefix) : true);
+  let internalEdges = 0;
+  let fanOut = 0;
+  let fanIn = 0;
+  for (const e of allEdges) {
+    const a = inside(e.from);
+    const b = inside(e.to);
+    if (a && b) internalEdges++;
+    else if (a && !b) fanOut++;
+    else if (!a && b) fanIn++;
+  }
+  const denom = internalEdges + fanOut;
+  return {
+    dominantLanguage,
+    entryPoints,
+    roles,
+    internalEdges,
+    fanOut,
+    fanIn,
+    cohesionPct: denom > 0 ? Math.round((internalEdges / denom) * 100) : null,
+  };
+}
+
 function dirZone(
   dir: DirNode,
   edgeIndex: Map<string, { from: string; to: string; kind?: "reference" }[]>,
   ghostsByParent: Map<string, Zone[]>,
+  resolvedEdges: { from: string; to: string }[],
 ): Zone {
   const t = totalsOf(dir);
   const childDirNodes = [...dir.dirs.values()].sort((a, b) => a.name.localeCompare(b.name));
-  const childDirs = childDirNodes.map((d) => dirZone(d, edgeIndex, ghostsByParent));
+  const childDirs = childDirNodes.map((d) => dirZone(d, edgeIndex, ghostsByParent, resolvedEdges));
   const childFiles = [...dir.files].sort((a, b) => a.path.localeCompare(b.path)).map(fileZone);
   const ghosts = ghostsByParent.get(dir.path) ?? [];
 
@@ -182,6 +258,7 @@ function dirZone(
     children: [...childDirs, ...childFiles, ...ghosts],
     edges,
     summary: `${t.files} file${t.files === 1 ? "" : "s"} · ${t.loc.toLocaleString()} lines${t.skipped ? ` · ${t.skipped} skipped` : ""}`,
+    district: computeIntel(dir, resolvedEdges),
   };
 }
 
@@ -217,7 +294,10 @@ export function buildRepoCityModel(ir: RepoIR): Zone {
   }
 
   const d = ir.diagnostics;
-  const rootZone = dirZone(root, edgeIndex, ghostsByParent);
+  const resolvedEdges = ir.edges
+    .filter((e) => e.kind === "import" && e.resolution === "resolved-static")
+    .map((e) => ({ from: e.from, to: e.to }));
+  const rootZone = dirZone(root, edgeIndex, ghostsByParent, resolvedEdges);
   return {
     ...rootZone,
     id: "city",

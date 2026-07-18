@@ -60,6 +60,25 @@ export interface Zone {
   file?: FileNode;
   /** Present on excluded-directory ghost zones — offers on-demand inclusion. */
   excludedDir?: { dir: string; entries?: number };
+  /** Present on repo districts: LLM-free computed intelligence (roadmap D1/D2). */
+  district?: DistrictIntel;
+}
+
+/** Computed (never inferred-by-LLM) facts about a directory. */
+export interface DistrictIntel {
+  dominantLanguage: string | null;
+  /** Entry-point files directly in this dir (index.*, main.*, __init__.py, …). */
+  entryPoints: string[];
+  /** Deterministic role badges with their evidence. */
+  roles: { role: string; evidence: string }[];
+  /** Resolved-import edges fully inside this district. */
+  internalEdges: number;
+  /** Edges leaving the district (its files importing outside). */
+  fanOut: number;
+  /** Edges entering the district (outside files importing in). */
+  fanIn: number;
+  /** internal / (internal + fanOut), 0–100; null when no edges at all. */
+  cohesionPct: number | null;
 }
 
 // ── Palette (shared by scene, legend, panels) ──────────────────────────────

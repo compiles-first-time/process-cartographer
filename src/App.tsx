@@ -11,7 +11,10 @@ import { buildCityModel, type Zone } from "./model/cityModel.ts";
 import { buildRepoCityModel } from "./model/repoCityModel.ts";
 import { computeLayout } from "./layout/cityLayout.ts";
 import { matchZones } from "./ui/search.ts";
-import { annotateZone, type Annotation } from "./annotate/annotate.ts";
+import { annotateZone, buildContext, DEFAULT_MODEL, DEEPEN_MODEL, PROMPT_VERSION, type Annotation } from "./annotate/annotate.ts";
+import { annotationKey, cacheGet, cachePut } from "./annotate/cache.ts";
+import { blastRadius, type BlastRadius } from "./model/graph.ts";
+import { parseCoverage, type CoverageOverlay } from "./overlay/coverage.ts";
 import type { IngestedProject } from "./ingest/types.ts";
 
 type ViewMode = "3d" | "list";
@@ -39,6 +42,9 @@ export default function App() {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("pc-anthropic-key") ?? "");
   const [keyRemembered, setKeyRemembered] = useState(() => localStorage.getItem("pc-anthropic-key") != null);
   const [annotations, setAnnotations] = useState<Map<string, AnnotationState>>(new Map());
+  // Blast radius (roadmap A1) + execution coverage overlay (E1).
+  const [radius, setRadius] = useState<BlastRadius | null>(null);
+  const [coverage, setCoverage] = useState<CoverageOverlay | null>(null);
 
   function rememberKey(remember: boolean) {
     setKeyRemembered(remember);
@@ -63,6 +69,157 @@ export default function App() {
     () => current?.children.find((c) => c.id === selectedId) ?? null,
     [current, selectedId],
   );
+
+  // Blast-radius roles for the buildings at the CURRENT level (A1).
+  const radiusByZone = useMemo(() => {
+    if (!radius || !current) return null;
+    const m = new Map<string, "self" | "up" | "down" | "both">();
+    for (const z of current.children) {
+      if (z.file) {
+        const p = z.file.path;
+        if (p === radius.file) m.set(z.id, "self");
+        else {
+          const u = radius.upstream.has(p);
+          const d = radius.downstream.has(p);
+          if (u && d) m.set(z.id, "both");
+          else if (u) m.set(z.id, "up");
+          else if (d) m.set(z.id, "down");
+        }
+      } else if (z.kind === "district" && !z.excludedDir && z.id.startsWith("dir:")) {
+        const prefix = z.id.slice(4) + "/";
+        const hasSelf = radius.file.startsWith(prefix);
+        let u = false;
+        let d = false;
+        for (const p of radius.upstream) if (p.startsWith(prefix)) { u = true; break; }
+        for (const p of radius.downstream) if (p.startsWith(prefix)) { d = true; break; }
+        if (hasSelf) m.set(z.id, "self");
+        else if (u && d) m.set(z.id, "both");
+        else if (u) m.set(z.id, "up");
+        else if (d) m.set(z.id, "down");
+      }
+    }
+    return m;
+  }, [radius, current]);
+
+  // Coverage fraction (0..1) per zone at the current level (E1).
+  const coverageByZone = useMemo(() => {
+    if (!coverage || !current) return null;
+    const m = new Map<string, number>();
+    for (const z of current.children) {
+      if (z.file) {
+        const c = coverage.byFile.get(z.file.path);
+        if (c) m.set(z.id, c.total > 0 ? c.covered / c.total : 0);
+      } else if (z.kind === "district" && !z.excludedDir && z.id.startsWith("dir:")) {
+        const prefix = z.id.slice(4) + "/";
+        let cov = 0;
+        let tot = 0;
+        for (const [p, c] of coverage.byFile) {
+          if (p.startsWith(prefix)) {
+            cov += c.covered;
+            tot += c.total;
+          }
+        }
+        if (tot > 0) m.set(z.id, cov / tot);
+      }
+    }
+    return m;
+  }, [coverage, current]);
+
+  // Global search across ALL levels (A2) — top 20, jump-to-zone on click.
+  const globalResults = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 2 || stack.length === 0) return [];
+    const out: { id: string; label: string; kind: string; hint: string }[] = [];
+    const walk = (z: Zone, depth: number) => {
+      if (out.length >= 20 || depth > 8) return;
+      for (const c of z.children) {
+        if (out.length >= 20) return;
+        const hay = [c.label, c.file?.path ?? "", ...(c.file?.symbols.map((s) => s.name) ?? [])]
+          .join(" ")
+          .toLowerCase();
+        if (hay.includes(q)) {
+          out.push({
+            id: c.id,
+            label: c.label,
+            kind: c.kind,
+            hint: c.file?.path ?? (c.id.startsWith("dir:") ? c.id.slice(4) : ""),
+          });
+        }
+        walk(c, depth + 1);
+      }
+    };
+    walk(stack[0], 0);
+    return out;
+  }, [query, stack]);
+
+  function findAncestors(z: Zone, id: string, acc: Zone[]): Zone[] | null {
+    for (const c of z.children) {
+      if (c.id === id) return [...acc, z];
+      const r = findAncestors(c, id, [...acc, z]);
+      if (r) return r;
+    }
+    return null;
+  }
+
+  /** Jump the drill view to ANY zone (global search / symbol → its file). */
+  function jumpToZone(id: string) {
+    const root = stack[0];
+    if (!root) return;
+    let targetId = id;
+    if (id.startsWith("sym:")) {
+      const rest = id.slice(4);
+      const lineSep = rest.lastIndexOf(":");
+      const nameSep = rest.lastIndexOf(":", lineSep - 1);
+      targetId = "file:" + rest.slice(0, nameSep);
+    }
+    const ancestors = findAncestors(root, targetId, []);
+    if (!ancestors) return;
+    setStack(ancestors);
+    setSelectedId(targetId);
+    setQuery("");
+  }
+
+  // Keyboard completion (A7): Esc = deselect/up, Enter = enter selected.
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      const t = e.target;
+      if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return;
+      if (e.key === "Escape") {
+        if (selectedId) setSelectedId(null);
+        else if (stack.length > 1) {
+          setStack((s) => s.slice(0, -1));
+          setQuery("");
+        }
+      } else if (e.key === "Enter" && selectedZone && selectedZone.children.length > 0) {
+        setStack((s) => [...s, selectedZone]);
+        setSelectedId(null);
+        setQuery("");
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, selectedZone, stack.length]);
+
+  /** Toggle blast radius for the selected file (A1). */
+  function toggleRadius(zone: Zone) {
+    if (loaded?.kind !== "repo" || !zone.file) return;
+    if (radius?.file === zone.file.path) setRadius(null);
+    else setRadius(blastRadius(loaded.ir, zone.file.path));
+  }
+
+  /** Load a coverage artifact (E1) — real execution data, painted on the city. */
+  async function loadCoverage(file: File) {
+    if (loaded?.kind !== "repo") return;
+    try {
+      const overlay = parseCoverage(await file.text(), loaded.ir.files.map((f) => f.path), file.name);
+      setCoverage(overlay);
+      setError(null);
+    } catch (err) {
+      setError("Coverage rejected: " + (err as Error).message);
+    }
+  }
+
 
   function cityOf(next: Loaded): Zone {
     return next.kind === "uipath" ? buildCityModel(next.ir) : buildRepoCityModel(next.ir);
@@ -99,6 +256,8 @@ export default function App() {
     setBusy(true);
     setIncludeDirs([]);
     setAnnotations(new Map());
+    setRadius(null);
+    setCoverage(null);
     try {
       // Syntax tier env is code-split — wasm loads only for repo ingests.
       const { browserSyntaxEnv } = await import("./repo/syntax/browserEnv.ts");
@@ -116,6 +275,8 @@ export default function App() {
     try {
       setIncludeDirs([]);
       setAnnotations(new Map());
+      setRadius(null);
+      setCoverage(null);
       present(loadFromIRJson(jsonText), null);
       setIngested(null);
     } catch (err) {
@@ -132,6 +293,7 @@ export default function App() {
     }
     setBusy(true);
     setProgress(`loading ${dir}…`);
+    setRadius(null); // edges change after expansion — recompute on demand
     try {
       const extra = await ingested.expandDir(dir);
       const byPath = new Map((ingested.allFiles ?? []).map((f) => [f.path, f]));
@@ -171,18 +333,28 @@ export default function App() {
     }
   }
 
-  /** AI annotation (ADR-0056): interpretation over computed facts — never structure. */
-  async function annotate(zone: Zone) {
+  /** AI annotation (ADR-0056): interpretation over computed facts — never structure.
+   *  Cost discipline (roadmap C1-C3): content-hash cache; Haiku default; Sonnet
+   *  on explicit "deepen"; the system prompt carries cache_control. */
+  async function annotate(zone: Zone, deep = false) {
     if (!apiKey.trim()) return;
     if (loaded?.kind !== "repo") return;
+    const model = deep ? DEEPEN_MODEL : DEFAULT_MODEL;
     setAnnotations((m) => new Map(m).set(zone.id, { status: "loading" }));
     try {
-      const result = await annotateZone({
-        zone,
-        ir: loaded.ir,
-        allFiles: ingested?.allFiles ?? [],
-        apiKey: apiKey.trim(),
-      });
+      const context = buildContext(zone, loaded.ir, ingested?.allFiles ?? []);
+      const key = await annotationKey(model, PROMPT_VERSION, context);
+      let result: Annotation | null = cacheGet(key);
+      if (!result) {
+        result = await annotateZone({
+          zone,
+          ir: loaded.ir,
+          allFiles: ingested?.allFiles ?? [],
+          apiKey: apiKey.trim(),
+          model,
+        });
+        cachePut(key, result);
+      }
       setAnnotations((m) => new Map(m).set(zone.id, { status: "done", result }));
     } catch (err) {
       setAnnotations((m) => new Map(m).set(zone.id, { status: "error", error: (err as Error).message }));
@@ -216,15 +388,49 @@ export default function App() {
       <header className="toolbar">
         <IngestPanel compact onResult={handleResult} onIRJson={handleIRJson} onError={setError} onBusy={setBusy} onProgress={setProgress} busy={busy} />
         <div className="toolbar-controls">
-          <input
-            type="search"
-            className="search"
-            placeholder={loaded.kind === "repo" ? "Search this level — files, dirs, languages…" : "Search this level — states, systems, workflows…"}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search the current level"
-          />
+          <div className="search-wrap">
+            <input
+              type="search"
+              className="search"
+              placeholder={loaded.kind === "repo" ? "Search the whole city — files, dirs, symbols…" : "Search this level — states, systems, workflows…"}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Search"
+            />
+            {globalResults.length > 0 && (
+              <div className="search-results" role="listbox">
+                {globalResults.map((r) => (
+                  <button key={r.id} className="search-result" onClick={() => jumpToZone(r.id)}>
+                    <span className="sr-label">{r.label}</span>
+                    <span className="sr-kind">{r.kind}</span>
+                    {r.hint && <span className="sr-hint mono">{r.hint}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           {query && <span className="match-count">{matchCount}/{layout.buildings.length}</span>}
+          {loaded.kind === "repo" &&
+            (coverage ? (
+              <span className="pill cov-chip" title={coverage.unmatched ? coverage.unmatched + " artifact entries matched no ingested file" : "all entries matched"}>
+                ▦ {coverage.label} · {coverage.matched} files
+                <button className="icon-btn" onClick={() => setCoverage(null)} aria-label="Clear coverage overlay">✕</button>
+              </span>
+            ) : (
+              <label className="cov-btn" title="Load a coverage artifact (c8/Jest coverage-final.json or coverage.py JSON) — real execution data painted on the city">
+                ▦ Coverage…
+                <input
+                  type="file"
+                  accept=".json"
+                  hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) void loadCoverage(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            ))}
           <div className="seg" role="group" aria-label="View mode">
             <button className={view === "3d" ? "active" : ""} onClick={() => setView("3d")}>3D map</button>
             <button className={view === "list" ? "active" : ""} onClick={() => setView("list")}>List</button>
@@ -266,6 +472,8 @@ export default function App() {
             layout={layout}
             selectedId={selectedId}
             matchedIds={matchedIds}
+            radiusByZone={radiusByZone}
+            coverageByZone={coverageByZone}
             reducedMotion={reducedMotion}
             onSelect={setSelectedId}
             onEnter={(id) => {
@@ -315,6 +523,17 @@ export default function App() {
             onJumpFile={jumpToFile}
             annotation={annotations.get(selectedZone.id) ?? { status: "idle" }}
             onAnnotate={() => annotate(selectedZone)}
+            onAnnotateDeep={() => annotate(selectedZone, true)}
+            radiusActive={radius != null && selectedZone.file?.path === radius.file}
+            radiusCounts={
+              radius && selectedZone.file?.path === radius.file
+                ? { upstream: radius.upstream.size, downstream: radius.downstream.size }
+                : null
+            }
+            onToggleRadius={selectedZone.file ? () => toggleRadius(selectedZone) : undefined}
+            coverageInfo={
+              coverage && selectedZone.file ? coverage.byFile.get(selectedZone.file.path) ?? null : null
+            }
             apiKey={apiKey}
             onApiKey={setApiKey}
             keyRemembered={keyRemembered}

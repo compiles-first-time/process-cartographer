@@ -9,12 +9,28 @@ interface CitySceneProps {
   layout: CityLayout;
   selectedId: string | null;
   matchedIds: Set<string> | null;
+  /** Blast-radius roles at this level (A1) — non-members dim while active. */
+  radiusByZone?: Map<string, "self" | "up" | "down" | "both"> | null;
+  /** Coverage fraction 0..1 per zone (E1) — tints buildings red→green. */
+  coverageByZone?: Map<string, number> | null;
   reducedMotion: boolean;
   onSelect: (id: string | null) => void;
   onEnter: (id: string) => void;
 }
 
-export default function CityScene({ layout, selectedId, matchedIds, reducedMotion, onSelect, onEnter }: CitySceneProps) {
+const ROLE_TINT: Record<string, string> = {
+  self: "#38bdf8", // the selected building
+  up: "#f59e0b", // depends on it (would feel a change)
+  down: "#60a5fa", // it depends on these
+  both: "#c084fc",
+};
+
+/** red (0) → yellow → green (1), readable on the dark theme. */
+function coverageTint(v: number): string {
+  return "hsl(" + Math.round(v * 120) + ", 65%, 46%)";
+}
+
+export default function CityScene({ layout, selectedId, matchedIds, radiusByZone, coverageByZone, reducedMotion, onSelect, onEnter }: CitySceneProps) {
   const selected = selectedId ? layout.buildings.find((b) => b.id === selectedId) ?? null : null;
   const span = Math.max(layout.bounds.width, layout.bounds.depth, 140);
   const dist = span * 0.85 + 150;
@@ -62,17 +78,26 @@ export default function CityScene({ layout, selectedId, matchedIds, reducedMotio
         />
       ))}
 
-      {layout.buildings.map((b) => (
-        <Building
-          key={b.id}
-          building={b}
-          selected={selectedId === b.id}
-          dimmed={matchedIds != null && !matchedIds.has(b.id)}
-          showLabel={showAllLabels && (matchedIds == null || matchedIds.has(b.id))}
-          onSelect={onSelect}
-          onEnter={onEnter}
-        />
-      ))}
+      {layout.buildings.map((b) => {
+        const role = radiusByZone?.get(b.id) ?? null;
+        const cov = coverageByZone?.get(b.id);
+        const tint = role ? ROLE_TINT[role] : cov != null ? coverageTint(cov) : undefined;
+        const dimmed =
+          (matchedIds != null && !matchedIds.has(b.id)) ||
+          (radiusByZone != null && role == null);
+        return (
+          <Building
+            key={b.id}
+            building={b}
+            selected={selectedId === b.id}
+            dimmed={dimmed}
+            tint={tint}
+            showLabel={showAllLabels && (matchedIds == null || matchedIds.has(b.id))}
+            onSelect={onSelect}
+            onEnter={onEnter}
+          />
+        );
+      })}
 
       <CameraRig
         focus={selected ? [selected.x, 0, selected.z] : null}

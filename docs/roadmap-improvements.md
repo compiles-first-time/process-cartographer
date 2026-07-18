@@ -11,13 +11,13 @@
 
 | # | Improvement | What it does | Why |
 |---|---|---|---|
-| A1 | **Blast-radius view** | Select a building → its full transitive import closure lights up (upstream = who depends on me, downstream = what I depend on), depth-faded | The #1 code-comprehension question ("what breaks if I touch this?"); pure graph traversal over edges we already compute |
-| A2 | **Global search** | Search the WHOLE city (all levels: dirs, files, symbols, import specifiers), results jump-to-zone (jumpToFile generalized) | Current search is per-level; users think repo-wide |
+| A1 ✅ | **Blast-radius view** | Select a building → its full transitive import closure lights up (upstream = who depends on me, downstream = what I depend on), depth-faded | The #1 code-comprehension question ("what breaks if I touch this?"); pure graph traversal over edges we already compute |
+| A2 ✅ | **Global search** | Search the WHOLE city (all levels: dirs, files, symbols, import specifiers), results jump-to-zone (jumpToFile generalized) | Current search is per-level; users think repo-wide |
 | A3 | **Path A→B lighting** | Pick two buildings → shortest import path lights up | The UiPath RCA "light the failing path" idea, generalized |
 | A4 | **Minimap / overview toggle** | Flat whole-city aerial with viewport indicator; needs InstancedMesh at >1k buildings | Drill-down-as-LOD is efficient but loses global orientation |
 | A5 | **Edge tooltips** | Hover a pipe → who→whom, kind, evidence line, click-to-open panel | Pipes currently carry knowledge you can't interrogate |
 | A6 | **Session persistence** | Recent repos + includeDirs choices + annotations in IndexedDB; one-click re-map | Re-ingesting on every visit wastes time and API budget |
-| A7 | **Keyboard completion** | Esc = up a level, Enter = enter selected, F = fly to selected | Complements the new WASD movement |
+| A7 ✅ | **Keyboard completion** | Esc = up a level, Enter = enter selected, F = fly to selected | Complements the new WASD movement |
 
 ## B. Mapping accuracy (the ADR-0055 ladder, climbed further)
 
@@ -34,9 +34,9 @@
 
 | # | Improvement | Saving |
 |---|---|---|
-| C1 | **Persistent annotation cache** keyed by (content hash, model, prompt version) in IndexedDB; exportable alongside IR JSON | Never pay twice for an unchanged file — the single biggest saver |
-| C2 | **Prompt caching** (`cache_control` on the system prompt + shared repo-context prefix) | ~90% input-token discount on cache hits when annotating several buildings in a session |
-| C3 | **Model tiering** | Haiku for district/file "what" summaries; Sonnet only on an explicit "deepen" click for why/how |
+| C1 ✅ | **Persistent annotation cache** keyed by (content hash, model, prompt version) in IndexedDB; exportable alongside IR JSON | Never pay twice for an unchanged file — the single biggest saver |
+| C2 ✅ | **Prompt caching** (`cache_control` on the system prompt + shared repo-context prefix) | ~90% input-token discount on cache hits when annotating several buildings in a session |
+| C3 ✅ | **Model tiering** | Haiku for district/file "what" summaries; Sonnet only on an explicit "deepen" click for why/how |
 | C4 | **Batch API for bulk jobs** ("annotate this district") | 50% discount; minutes-latency is fine for bulk, results stream in as they land |
 | C5 | **Grounding compression** | Send computed facts + only the symbol-bearing line ranges for large files, not whole files |
 | C6 | **Hierarchical annotation** | Annotate leaf dirs first; parent annotations consume child summaries (bottom-up) — cheaper AND more accurate at scale |
@@ -45,8 +45,8 @@
 
 | # | Improvement | Notes |
 |---|---|---|
-| D1 | **Computed district intelligence** (no LLM): dominant language, entry points (`main`/`index.*`/`__init__.py`/`package.json#main`), fan-in/fan-out, cohesion ratio (internal vs external edges) on every district panel | Answers most "what is this directory" questions deterministically |
-| D2 | **Role badges** from deterministic signals: `tests` (test patterns/frameworks), `CI` (`.github/workflows`), `docs`, `config`, `entry point` — each with evidence | Structure semantics without interpretation risk |
+| D1 ✅ | **Computed district intelligence** (no LLM): dominant language, entry points (`main`/`index.*`/`__init__.py`/`package.json#main`), fan-in/fan-out, cohesion ratio (internal vs external edges) on every district panel | Answers most "what is this directory" questions deterministically |
+| D2 ✅ | **Role badges** from deterministic signals: `tests` (test patterns/frameworks), `CI` (`.github/workflows`), `docs`, `config`, `entry point` — each with evidence | Structure semantics without interpretation risk |
 | D3 | **README surfacing** | Nearest README rendered in the district panel (already fed to the AI; show it computed too) |
 | D4 | Combined with C6: district AI annotations grounded in D1–D3 facts | The "why is it structured this way" answer gets sharper as the computed context gets richer |
 
@@ -57,7 +57,7 @@ produce REAL execution data; observed-events-only rendering keeps the accuracy
 contract intact (runtime data is an OVERLAY keyed to file paths — it never writes
 structure). Three stages, each shippable alone:
 
-1. **E1 — Coverage overlay (artifact upload, no live infra).** Load standard
+1. ✅ **E1 — Coverage overlay (artifact upload, no live infra).** Load standard
    coverage artifacts — V8/c8/Jest coverage JSON, Python `coverage.py` JSON, and
    UiPath execution logs for the original pipeline — via a "load overlay" seam
    next to the IR-JSON loader. Executed files GLOW (intensity = hit count), cold
